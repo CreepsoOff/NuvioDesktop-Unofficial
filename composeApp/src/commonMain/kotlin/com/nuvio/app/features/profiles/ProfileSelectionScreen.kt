@@ -61,8 +61,6 @@ import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ProfileSelectionScreen(
@@ -134,7 +132,7 @@ fun ProfileSelectionScreen(
             Spacer(modifier = Modifier.height(if (isTabletLayout) 0.dp else 60.dp))
 
             Text(
-                text = stringResource(Res.string.profile_who_is_watching),
+                text = "Who's watching?",
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontSize = 30.sp,
                     letterSpacing = (-0.5).sp,
@@ -260,11 +258,7 @@ fun ProfileSelectionScreen(
                     .padding(horizontal = 24.dp, vertical = 10.dp),
             ) {
                 Text(
-                    text = if (isEditMode) {
-                        stringResource(Res.string.action_done)
-                    } else {
-                        stringResource(Res.string.profile_manage_profiles)
-                    },
+                    text = if (isEditMode) "Done" else "Manage Profiles",
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (isEditMode) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -435,9 +429,7 @@ private fun ProfileAvatarCard(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = profile.name.ifBlank {
-                stringResource(Res.string.profile_label_number, profile.profileIndex)
-            },
+            text = profile.name.ifBlank { "Profile ${profile.profileIndex}" },
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
@@ -514,7 +506,7 @@ private fun AddProfileCard(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = stringResource(Res.string.compose_profile_add_profile),
+            text = "Add Profile",
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.SemiBold,

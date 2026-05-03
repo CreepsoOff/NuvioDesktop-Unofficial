@@ -38,11 +38,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.features.trakt.TraktCommentReview
 import kotlinx.coroutines.flow.distinctUntilChanged
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun DetailCommentsSection(
@@ -104,14 +101,14 @@ fun DetailCommentsSection(
                             contentColor = MaterialTheme.colorScheme.onSurface,
                         ),
                     ) {
-                        Text(stringResource(Res.string.action_retry))
+                        Text("Retry")
                     }
                 }
             }
 
             comments.isEmpty() -> {
                 Text(
-                    text = stringResource(Res.string.detail_comments_empty),
+                    text = "No comments yet.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -123,11 +120,7 @@ fun DetailCommentsSection(
                     state = listState,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(
-                        items = comments.withDuplicateSafeLazyKeys { it.id },
-                        key = { it.lazyKey },
-                    ) { keyedReview ->
-                        val review = keyedReview.value
+                    items(comments, key = { it.id }) { review ->
                         CommentCard(
                             review = review,
                             onClick = { onCommentClick(review) },
@@ -151,7 +144,7 @@ private fun CommentsHeader() {
         val titleSize = if (isTablet) 22.sp else 20.sp
 
         Text(
-            text = stringResource(Res.string.detail_comments_title),
+            text = "Trakt Comments",
             style = MaterialTheme.typography.titleLarge.copy(
                 fontSize = titleSize,
                 fontWeight = FontWeight.SemiBold,
@@ -170,7 +163,7 @@ private fun CommentCard(
     val colorScheme = MaterialTheme.colorScheme
     val isAmoled = colorScheme.background == Color.Black && colorScheme.surface == Color(0xFF050505)
     val bodyText = if (review.hasSpoilerContent) {
-        stringResource(Res.string.detail_comments_spoiler_card)
+        "This comment contains spoilers."
     } else {
         review.comment
     }
@@ -206,13 +199,13 @@ private fun CommentCard(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (review.review) {
-                        CommentChip(text = stringResource(Res.string.detail_comments_badge_review))
+                        CommentChip(text = "Review")
                     }
                     if (review.hasSpoilerContent) {
-                        CommentChip(text = stringResource(Res.string.detail_comments_badge_spoiler))
+                        CommentChip(text = "Spoiler")
                     }
                     review.rating?.let { rating ->
-                        CommentChip(text = stringResource(Res.string.detail_comments_badge_rating, rating))
+                        CommentChip(text = "Rating $rating/10")
                     }
                 }
 
@@ -226,7 +219,7 @@ private fun CommentCard(
                 )
 
                 Text(
-                    text = stringResource(Res.string.detail_comments_likes, review.likes),
+                    text = "${review.likes} likes",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     maxLines = 1,

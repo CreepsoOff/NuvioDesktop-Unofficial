@@ -22,14 +22,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -40,19 +40,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nuvio.app.core.i18n.localizedByteUnit
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamsUiState
-import kotlin.math.round
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun PlayerSourcesPanel(
@@ -113,19 +108,19 @@ fun PlayerSourcesPanel(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = stringResource(Res.string.compose_player_panel_sources),
+                                text = "Sources",
                                 color = colorScheme.onSurface,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 PanelChipButton(
-                                    label = stringResource(Res.string.compose_action_reload),
+                                    label = "Reload",
                                     icon = Icons.Rounded.Refresh,
                                     onClick = onReload,
                                 )
                                 PanelChipButton(
-                                    label = stringResource(Res.string.action_close),
+                                    label = "Close",
                                     onClick = onDismiss,
                                 )
                             }
@@ -145,7 +140,7 @@ fun PlayerSourcesPanel(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 AddonFilterChip(
-                                    label = stringResource(Res.string.collections_tab_all),
+                                    label = "All",
                                     isSelected = streamsUiState.selectedFilter == null,
                                     onClick = { onFilterSelected(null) },
                                 )
@@ -187,7 +182,7 @@ fun PlayerSourcesPanel(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
-                                        text = stringResource(Res.string.compose_player_no_streams_found),
+                                        text = "No streams found",
                                         color = colorScheme.onSurfaceVariant,
                                         fontSize = 14.sp,
                                     )
@@ -233,32 +228,24 @@ private fun SourceStreamRow(
     onClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val cardShape = RoundedCornerShape(12.dp)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 68.dp)
-            .shadow(
-                elevation = 2.dp,
-                shape = cardShape,
-                ambientColor = Color.Black.copy(alpha = 0.04f),
-                spotColor = Color.Black.copy(alpha = 0.04f),
-            )
-            .clip(cardShape)
+            .clip(RoundedCornerShape(12.dp))
             .background(
-                if (isCurrent) colorScheme.primaryContainer.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.05f),
+                if (isCurrent) colorScheme.primaryContainer.copy(alpha = 0.55f) else Color.Transparent,
             )
             .then(
                 if (isCurrent) {
-                    Modifier.border(1.dp, colorScheme.primary.copy(alpha = 0.45f), cardShape)
+                    Modifier.border(1.dp, colorScheme.primary.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                 } else {
                     Modifier
                 },
             )
             .clickable(onClick = onClick)
-            .padding(14.dp),
-        verticalAlignment = Alignment.Top,
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -269,13 +256,11 @@ private fun SourceStreamRow(
                 Text(
                     text = stream.streamLabel,
                     color = colorScheme.onSurface,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        lineHeight = 20.sp,
-                        letterSpacing = 0.1.sp,
-                    ),
-                    modifier = Modifier.weight(1f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 if (isCurrent) {
                     Box(
@@ -285,7 +270,7 @@ private fun SourceStreamRow(
                             .padding(horizontal = 8.dp, vertical = 3.dp),
                     ) {
                         Text(
-                            text = stringResource(Res.string.compose_player_playing),
+                            text = "Playing",
                             color = colorScheme.onPrimaryContainer,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -293,66 +278,34 @@ private fun SourceStreamRow(
                     }
                 }
             }
-
-            val subtitle = stream.streamSubtitle
-            if (!subtitle.isNullOrBlank() && subtitle != stream.streamLabel) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(
+            stream.streamSubtitle?.let { subtitle ->
+                if (subtitle != stream.streamLabel) {
+                    Text(
+                        text = subtitle,
+                        color = colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
-                        lineHeight = 18.sp,
-                    ),
-                    color = colorScheme.onSurfaceVariant,
-                )
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
-
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                PlayerStreamFileSizeBadge(stream = stream)
-                Text(
-                    text = stream.addonName,
-                    color = colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp,
-                    fontStyle = FontStyle.Italic,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlayerStreamFileSizeBadge(stream: StreamItem) {
-    val bytes = stream.behaviorHints.videoSize ?: return
-    val gib = bytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
-    val sizeLabel = if (gib >= 1.0) {
-        val roundedGiB = round(gib * 10.0) / 10.0
-        "$roundedGiB ${localizedByteUnit("GB")}"
-    } else {
-        val mib = bytes.toDouble() / (1024.0 * 1024.0)
-        "${round(mib).toInt()} ${localizedByteUnit("MB")}"
-    }
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF0A0C0C))
-            .padding(horizontal = 8.dp, vertical = 3.dp),
-    ) {
-        Text(
-            text = stringResource(Res.string.streams_size, sizeLabel),
-            style = MaterialTheme.typography.labelSmall.copy(
+            Text(
+                text = stream.addonName,
+                color = colorScheme.onSurfaceVariant,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.2.sp,
-            ),
-            color = Color.White,
-        )
+                fontStyle = FontStyle.Italic,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (isCurrent) {
+            Icon(
+                imageVector = Icons.Rounded.Check,
+                contentDescription = "Currently playing",
+                tint = colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 

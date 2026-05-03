@@ -1,6 +1,19 @@
 package com.nuvio.app.core.format
 
-import com.nuvio.app.core.i18n.localizedMonthName
+private val MONTH_NAMES = listOf(
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
 
 /**
  * Formats ISO calendar dates (yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss…) for UI as "2025 February 1".
@@ -15,7 +28,7 @@ fun formatReleaseDateForDisplay(raw: String): String {
     val year = parts[0].toIntOrNull() ?: return raw
     val month = parts[1].toIntOrNull()?.takeIf { it in 1..12 } ?: return raw
     val day = parts[2].toIntOrNull()?.takeIf { it in 1..31 } ?: return raw
-    return "$year ${localizedMonthName(month)} $day"
+    return "$year ${MONTH_NAMES[month - 1]} $day"
 }
 
 /**

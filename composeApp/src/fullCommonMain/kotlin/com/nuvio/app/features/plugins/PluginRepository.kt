@@ -4,7 +4,6 @@ import co.touchlab.kermit.Logger
 import com.nuvio.app.core.network.SupabaseProvider
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.profiles.ProfileRepository
-import com.nuvio.app.features.tmdb.TmdbService
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
@@ -315,15 +314,10 @@ actual object PluginRepository {
         season: Int?,
         episode: Int?,
     ): Result<List<PluginRuntimeResult>> {
-        val resolvedTmdbId = resolvePluginTmdbId(
-            tmdbId = tmdbId,
-            mediaType = mediaType,
-        )
-
         return runCatching {
             PluginRuntime.executePlugin(
                 code = scraper.code,
-                tmdbId = resolvedTmdbId,
+                tmdbId = tmdbId,
                 mediaType = normalizePluginType(mediaType),
                 season = season,
                 episode = episode,
@@ -331,19 +325,6 @@ actual object PluginRepository {
                 scraperSettings = emptyMap(),
             )
         }
-    }
-
-    private suspend fun resolvePluginTmdbId(
-        tmdbId: String,
-        mediaType: String,
-    ): String {
-        val trimmed = tmdbId.trim()
-        if (trimmed.isBlank()) return tmdbId
-
-        return TmdbService.ensureTmdbId(
-            videoId = trimmed,
-            mediaType = mediaType,
-        ) ?: trimmed
     }
 
     private suspend fun fetchRepositoryData(

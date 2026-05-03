@@ -14,7 +14,6 @@ import com.nuvio.app.features.watching.domain.isReleasedBy
 import com.nuvio.app.features.watching.domain.latestCompletedSeriesEpisode
 import com.nuvio.app.features.watching.domain.playLabel
 import com.nuvio.app.features.watching.domain.resumeLabel
-import com.nuvio.app.features.watching.domain.shouldSurfaceNextEpisode
 import com.nuvio.app.features.watching.domain.upNextLabel
 
 internal fun MetaDetails.sortedPlayableEpisodes(): List<MetaVideo> =
@@ -65,60 +64,24 @@ internal fun MetaDetails.nextReleasedEpisodeAfter(
     episodeNumber: Int?,
     todayIsoDate: String,
 ): MetaVideo? {
-    return nextReleasedEpisodeAfter(
-        seasonNumber = seasonNumber,
-        episodeNumber = episodeNumber,
-        todayIsoDate = todayIsoDate,
-        showUnairedNextUp = false,
-    )
-}
-
-internal fun MetaDetails.nextReleasedEpisodeAfter(
-    seasonNumber: Int?,
-    episodeNumber: Int?,
-    todayIsoDate: String,
-    showUnairedNextUp: Boolean,
-): MetaVideo? {
     val sortedEpisodes = sortedPlayableEpisodes()
     val watchedVideoId = buildPlaybackVideoId(
         content = WatchingContentRef(type = type, id = id),
         seasonNumber = seasonNumber,
         episodeNumber = episodeNumber,
     )
-    var watchedIndex = sortedEpisodes.indexOfFirst { episode ->
-        buildPlaybackVideoId(
-            content = WatchingContentRef(type = type, id = id),
-            seasonNumber = episode.season,
-            episodeNumber = episode.episode,
-            fallbackVideoId = episode.id,
-        ) == watchedVideoId
-    }
-
-    // Fallback: if the seed wasn't found by season+episode (anime with absolute
-    // numbering on Trakt vs multi-season on addon), try global index matching.
-    if (watchedIndex < 0 && seasonNumber != null && episodeNumber != null) {
-        val addonSeasons = sortedEpisodes.mapTo(mutableSetOf()) { it.season }
-        if (seasonNumber == 1 && addonSeasons.size > 1 && episodeNumber > 0) {
-            val globalIndex = episodeNumber - 1
-            if (globalIndex in sortedEpisodes.indices) {
-                watchedIndex = globalIndex
-            }
-        }
-    }
-
-    if (watchedIndex < 0) return null
-
-    val watchedEpisodeSeason = sortedEpisodes[watchedIndex].season
     val candidates = sortedEpisodes
-        .drop(watchedIndex + 1)
+        .dropWhile { episode ->
+            buildPlaybackVideoId(
+                content = WatchingContentRef(type = type, id = id),
+                seasonNumber = episode.season,
+                episodeNumber = episode.episode,
+                fallbackVideoId = episode.id,
+            ) != watchedVideoId
+        }
+        .drop(1)
         .filter { episode ->
-            shouldSurfaceNextEpisode(
-                watchedSeasonNumber = watchedEpisodeSeason,
-                candidateSeasonNumber = episode.season,
-                todayIsoDate = todayIsoDate,
-                releasedDate = episode.released,
-                showUnairedNextUp = showUnairedNextUp,
-            )
+            isReleasedBy(todayIsoDate = todayIsoDate, releasedDate = episode.released)
         }
     return candidates.firstOrNull { normalizeSeasonNumber(it.season) > 0 }
 }

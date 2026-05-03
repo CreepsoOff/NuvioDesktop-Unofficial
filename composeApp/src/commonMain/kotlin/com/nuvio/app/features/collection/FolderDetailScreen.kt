@@ -53,8 +53,7 @@ import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.NuvioPosterCard
 import com.nuvio.app.core.ui.NuvioPosterShape
 import com.nuvio.app.core.ui.NuvioScreenHeader
-import com.nuvio.app.core.ui.nuvioSafeBottomPadding
-import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
+import com.nuvio.app.core.ui.nuvioPlatformExtraBottomPadding
 import com.nuvio.app.features.home.HomeCatalogSection
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
@@ -64,11 +63,6 @@ import com.nuvio.app.features.home.components.HomeCatalogRowSection
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.collections_folder_empty_items
-import nuvio.composeapp.generated.resources.collections_folder_not_found
-import nuvio.composeapp.generated.resources.collections_tab_all
-import org.jetbrains.compose.resources.stringResource
 
 private val FolderCoverHeight = 176.dp
 
@@ -149,7 +143,7 @@ fun FolderDetailScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = stringResource(Res.string.collections_folder_not_found),
+                    text = "Folder not found",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -235,11 +229,7 @@ private fun TabbedGridContent(
                             onClick = { onTabSelected(index) },
                             text = {
                                 Text(
-                                    text = if (tab.isAllTab) {
-                                        stringResource(Res.string.collections_tab_all)
-                                    } else {
-                                        tab.label
-                                    },
+                                    text = tab.label,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -270,16 +260,15 @@ private fun TabbedGridContent(
                         contentPadding = PaddingValues(
                             start = 16.dp,
                             end = 16.dp,
-                            bottom = nuvioSafeBottomPadding(18.dp),
+                            bottom = 18.dp + nuvioPlatformExtraBottomPadding,
                         ),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         items(
-                            items = selectedTab.items.withDuplicateSafeLazyKeys { item -> item.stableKey() },
-                            key = { item -> item.lazyKey },
-                        ) { keyedItem ->
-                            val item = keyedItem.value
+                            items = selectedTab.items,
+                            key = { item -> item.stableKey() },
+                        ) { item ->
                             NuvioPosterCard(
                                 title = item.name,
                                 imageUrl = item.poster,
@@ -323,15 +312,14 @@ private fun RowsContent(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            bottom = nuvioSafeBottomPadding(18.dp),
+            bottom = 18.dp + nuvioPlatformExtraBottomPadding,
         ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         items(
-            items = sections.withDuplicateSafeLazyKeys { it.key },
-            key = { it.lazyKey },
-        ) { keyedSection ->
-            val section = keyedSection.value
+            items = sections,
+            key = { it.key },
+        ) { section ->
             HomeCatalogRowSection(
                 section = section,
                 entries = section.items.take(18),
@@ -407,7 +395,7 @@ private fun EmptyMessage() {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = stringResource(Res.string.collections_folder_empty_items),
+            text = "No items found",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

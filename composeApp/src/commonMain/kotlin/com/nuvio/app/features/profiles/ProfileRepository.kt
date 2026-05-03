@@ -10,7 +10,6 @@ import com.nuvio.app.features.collection.CollectionRepository
 import com.nuvio.app.features.downloads.DownloadsRepository
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
-import com.nuvio.app.features.home.HomeRepository
 import com.nuvio.app.core.ui.PosterCardStyleRepository
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
@@ -33,7 +32,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -41,9 +39,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getString
 
 @Serializable
 private data class StoredProfilePayload(
@@ -56,7 +51,6 @@ object ProfileRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val log = Logger.withTag("ProfileRepository")
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-    private fun localizedString(resource: StringResource): String = runBlocking { getString(resource) }
 
     private val _state = MutableStateFlow(ProfileState())
     val state: StateFlow<ProfileState> = _state.asStateFlow()
@@ -70,7 +64,6 @@ object ProfileRepository {
         val stored = decodeStoredPayload() ?: return false
         loadedCacheForUserId = stored.userId
         applyStoredPayload(stored)
-        ThemeSettingsRepository.onProfileChanged()
         return _state.value.profiles.isNotEmpty()
     }
 
@@ -145,7 +138,6 @@ object ProfileRepository {
         PosterCardStyleRepository.onProfileChanged()
         PlayerSettingsRepository.onProfileChanged()
         HomeCatalogSettingsRepository.onProfileChanged()
-        HomeRepository.clear()
         MetaScreenSettingsRepository.onProfileChanged()
         ContinueWatchingPreferencesRepository.onProfileChanged()
         EpisodeReleaseNotificationsRepository.onProfileChanged()
@@ -280,7 +272,7 @@ object ProfileRepository {
 
     suspend fun setPin(profileIndex: Int, pin: String, currentPin: String? = null): PinVerifyResult {
         if (AuthRepository.state.value !is AuthState.Authenticated) {
-            return PinVerifyResult(unlocked = false, message = getString(Res.string.profile_pin_set_requires_internet))
+            return PinVerifyResult(unlocked = false, message = "Connect to the internet to set a PIN.")
         }
 
         return runCatching {
@@ -296,13 +288,13 @@ object ProfileRepository {
         }.onFailure { e ->
             log.e(e) { "Failed to set pin" }
         }.getOrElse {
-            PinVerifyResult(unlocked = false, message = getString(Res.string.profile_pin_set_failed))
+            PinVerifyResult(unlocked = false, message = "Couldn't set PIN. Try again.")
         }
     }
 
     suspend fun clearPin(profileIndex: Int, currentPin: String? = null): PinVerifyResult {
         if (AuthRepository.state.value !is AuthState.Authenticated) {
-            return PinVerifyResult(unlocked = false, message = getString(Res.string.profile_pin_clear_requires_internet))
+            return PinVerifyResult(unlocked = false, message = "Connect to the internet to remove the PIN lock.")
         }
 
         return runCatching {
@@ -317,7 +309,7 @@ object ProfileRepository {
         }.onFailure { e ->
             log.e(e) { "Failed to clear pin" }
         }.getOrElse {
-            PinVerifyResult(unlocked = false, message = getString(Res.string.profile_pin_clear_failed))
+            PinVerifyResult(unlocked = false, message = "Couldn't remove PIN lock. Try again.")
         }
     }
 
@@ -413,7 +405,7 @@ object ProfileRepository {
         if (payload.isEmpty()) {
             return PinVerifyResult(
                 unlocked = false,
-                message = localizedString(Res.string.profile_pin_offline_verification_requires_online),
+                message = "This PIN can't be verified offline on this device yet. Connect once and unlock it online first.",
             )
         }
 
@@ -421,7 +413,7 @@ object ProfileRepository {
             json.decodeFromString<CachedProfilePinPayload>(payload)
         }.getOrNull() ?: return PinVerifyResult(
             unlocked = false,
-            message = localizedString(Res.string.profile_pin_offline_verification_requires_online),
+            message = "This PIN can't be verified offline on this device yet. Connect once and unlock it online first.",
         )
 
         if (
@@ -432,7 +424,7 @@ object ProfileRepository {
             ProfilePinCacheStorage.removePayload(profileIndex)
             return PinVerifyResult(
                 unlocked = false,
-                message = localizedString(Res.string.profile_pin_changed_requires_refresh),
+                message = "This profile PIN changed. Connect once to refresh the lock on this device.",
             )
         }
 
@@ -440,7 +432,7 @@ object ProfileRepository {
         return if (digest == cached.digest) {
             PinVerifyResult(unlocked = true)
         } else {
-            PinVerifyResult(unlocked = false, message = localizedString(Res.string.pin_incorrect))
+            PinVerifyResult(unlocked = false, message = "Incorrect PIN")
         }
     }
 

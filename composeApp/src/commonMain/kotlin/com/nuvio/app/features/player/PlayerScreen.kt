@@ -1,7 +1,6 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContent
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.focusable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
@@ -32,8 +33,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -63,16 +73,15 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 import kotlin.math.roundToLong
 import kotlin.math.roundToInt
 
 private const val PlaybackProgressPersistIntervalMs = 60_000L
+private const val PlayerControlsAutoHideDelayMs = 3_500L
+private const val PlayerCursorAutoHideDelayMs = 700L
 private const val PlayerDoubleTapSeekStepMs = 10_000L
 private const val PlayerDoubleTapSeekResetDelayMs = 800L
-private const val PlayerLockedOverlayDurationMs = 2_000L
 private const val PlayerLeftGestureBoundary = 0.4f
 private const val PlayerRightGestureBoundary = 0.6f
 private const val PlayerVerticalGestureSensitivity = 1f
@@ -156,15 +165,22 @@ fun PlayerScreen(
         val overlayBottomPadding = sliderOverlayBottomPadding(metrics)
         val scope = rememberCoroutineScope()
         val hapticFeedback = LocalHapticFeedback.current
-        val resizeModeFitLabel = stringResource(Res.string.compose_player_resize_fit)
-        val resizeModeFillLabel = stringResource(Res.string.compose_player_resize_fill)
-        val resizeModeZoomLabel = stringResource(Res.string.compose_player_resize_zoom)
-        val downloadedLabel = stringResource(Res.string.compose_player_downloaded)
-        val airsPrefix = stringResource(Res.string.compose_player_airs_prefix)
-        val tbaLabel = stringResource(Res.string.compose_player_tba)
         val gestureController = rememberPlayerGestureController()
+        val fullscreenController = rememberPlayerFullscreenController()
+        val playerFocusRequester = remember { FocusRequester() }
+        val hoverDrivenChrome = !usesNativePlayerChrome && !usesAnimatedPlayerChrome
         var controlsVisible by rememberSaveable { mutableStateOf(true) }
-        var playerControlsLocked by rememberSaveable { mutableStateOf(false) }
+        var isHovering by remember { mutableStateOf(false) }
+        var cursorVisible by remember { mutableStateOf(true) }
+        var pointerActivitySerial by remember { mutableStateOf(0) }
+        val setControlsVisibleFromHover = rememberUpdatedState { shouldShow: Boolean ->
+            if (shouldShow) {
+                controlsVisible = true
+                cursorVisible = true
+                pointerActivitySerial += 1
+            }
+            isHovering = shouldShow
+        }
         // Active playback state (mutable to support source/episode switching)
         var activeSourceUrl by rememberSaveable { mutableStateOf(sourceUrl) }
         var activeSourceAudioUrl by rememberSaveable { mutableStateOf(sourceAudioUrl) }
@@ -186,7 +202,29 @@ fun PlayerScreen(
         var activeVideoId by rememberSaveable { mutableStateOf(videoId) }
         var activeInitialPositionMs by rememberSaveable { mutableStateOf(initialPositionMs) }
         var activeInitialProgressFraction by rememberSaveable { mutableStateOf(initialProgressFraction) }
-        var shouldPlay by rememberSaveable(activeSourceUrl) { mutableStateOf(true) }
+        var playbackSessionNonce by rememberSaveable { mutableStateOf(0) }
+        val activePlaybackKey = remember(
+            parentMetaId,
+            activeVideoId,
+            activeSeasonNumber,
+            activeEpisodeNumber,
+            activeSourceUrl,
+            activeSourceAudioUrl,
+            activeSourceHeaders,
+            playbackSessionNonce,
+        ) {
+            buildDesktopPlaybackKey(
+                parentMetaId = parentMetaId,
+                videoId = activeVideoId,
+                seasonNumber = activeSeasonNumber,
+                episodeNumber = activeEpisodeNumber,
+                sourceUrl = activeSourceUrl,
+                sourceAudioUrl = activeSourceAudioUrl,
+                headers = activeSourceHeaders,
+                sessionNonce = playbackSessionNonce,
+            )
+        }
+        var shouldPlay by rememberSaveable(activePlaybackKey) { mutableStateOf(true) }
         var resizeMode by rememberSaveable(playerSettingsUiState.resizeMode) {
             mutableStateOf(playerSettingsUiState.resizeMode)
         }
@@ -200,33 +238,47 @@ fun PlayerScreen(
         var gestureFeedback by remember { mutableStateOf<GestureFeedbackState?>(null) }
         var liveGestureFeedback by remember { mutableStateOf<GestureFeedbackState?>(null) }
         var renderedGestureFeedback by remember { mutableStateOf<GestureFeedbackState?>(null) }
-        var lockedOverlayVisible by remember { mutableStateOf(false) }
         var gestureMessageJob by remember { mutableStateOf<Job?>(null) }
         var accumulatedSeekResetJob by remember { mutableStateOf<Job?>(null) }
         var accumulatedSeekState by remember { mutableStateOf<PlayerAccumulatedSeekState?>(null) }
-        var initialLoadCompleted by remember(activeSourceUrl) { mutableStateOf(false) }
-        var speedBoostRestoreSpeed by remember(activeSourceUrl) { mutableStateOf<Float?>(null) }
-        var isHoldToSpeedGestureActive by remember(activeSourceUrl) { mutableStateOf(false) }
-        var initialSeekApplied by remember(activeSourceUrl, activeInitialPositionMs, activeInitialProgressFraction) {
+        var initialLoadCompleted by remember(activePlaybackKey) { mutableStateOf(false) }
+        var speedBoostRestoreSpeed by remember(activePlaybackKey) { mutableStateOf<Float?>(null) }
+        var isHoldToSpeedGestureActive by remember(activePlaybackKey) { mutableStateOf(false) }
+        var initialSeekApplied by remember(activePlaybackKey, activeInitialPositionMs, activeInitialProgressFraction) {
             val initialProgressFraction = activeInitialProgressFraction
             mutableStateOf(
                 activeInitialPositionMs <= 0L &&
                     (initialProgressFraction == null || initialProgressFraction <= 0f),
             )
         }
-        var lastProgressPersistEpochMs by remember(activeSourceUrl) { mutableStateOf(0L) }
-        var previousIsPlaying by remember(activeSourceUrl) { mutableStateOf(false) }
+        var lastProgressPersistEpochMs by remember(activePlaybackKey) { mutableStateOf(0L) }
+        var previousIsPlaying by remember(activePlaybackKey) { mutableStateOf(false) }
         var hasRequestedScrobbleStartForCurrentItem by remember(
-            activeSourceUrl,
+            activePlaybackKey,
             activeVideoId,
             activeSeasonNumber,
             activeEpisodeNumber,
         ) { mutableStateOf(false) }
         var hasSentCompletionScrobbleForCurrentItem by remember(
+            activePlaybackKey,
             activeVideoId,
             activeSeasonNumber,
             activeEpisodeNumber,
         ) { mutableStateOf(false) }
+        var controllerSessionKey by remember { mutableStateOf<String?>(null) }
+        var activeSessionPlayerReady by remember(activePlaybackKey) { mutableStateOf(false) }
+        var activeSessionMediaReady by remember(activePlaybackKey) { mutableStateOf(false) }
+        var lastVisualPhase by remember(activePlaybackKey) { mutableStateOf<String?>(null) }
+
+        ManagePlayerCursorVisibility(
+            visible = !hoverDrivenChrome ||
+                cursorVisible ||
+                controlsVisible ||
+                playbackSnapshot.isLoading ||
+                errorMessage != null,
+        )
+        var lastSurfaceBoundsLog by remember(activePlaybackKey) { mutableStateOf<String?>(null) }
+        var lastOpeningOverlayBoundsLog by remember(activePlaybackKey) { mutableStateOf<String?>(null) }
         val backdropArtwork = background ?: poster
         val displayedPositionMs = scrubbingPositionMs ?: playbackSnapshot.positionMs
         val isEpisode = activeSeasonNumber != null && activeEpisodeNumber != null
@@ -378,6 +430,7 @@ fun PlayerScreen(
             val progressPercent = currentPlaybackProgressPercent()
             if (progressPercent >= 1f && progressPercent < 80f) {
                 emitTraktScrobbleStop(progressPercent)
+                hasSentCompletionScrobbleForCurrentItem = false
                 return
             }
 
@@ -397,6 +450,7 @@ fun PlayerScreen(
 
         val onBackWithProgress = remember(onBack, playbackSession, playbackSnapshot) {
             {
+                playerController?.release()
                 flushWatchProgress()
                 onBack()
             }
@@ -410,8 +464,8 @@ fun PlayerScreen(
         var selectedSubtitleIndex by remember { mutableStateOf(-1) }
         var selectedAddonSubtitleId by remember { mutableStateOf<String?>(null) }
         var useCustomSubtitles by remember { mutableStateOf(false) }
-        var preferredAudioSelectionApplied by rememberSaveable(sourceUrl) { mutableStateOf(false) }
-        var preferredSubtitleSelectionApplied by rememberSaveable(sourceUrl) { mutableStateOf(false) }
+        var preferredAudioSelectionApplied by rememberSaveable(activePlaybackKey) { mutableStateOf(false) }
+        var preferredSubtitleSelectionApplied by rememberSaveable(activePlaybackKey) { mutableStateOf(false) }
         var activeSubtitleTab by remember { mutableStateOf(SubtitleTab.BuiltIn) }
         val subtitleStyle = playerSettingsUiState.subtitleStyle
         val addonSubtitles by SubtitleRepository.addonSubtitles.collectAsStateWithLifecycle()
@@ -419,6 +473,13 @@ fun PlayerScreen(
 
         fun refreshTracks() {
             val ctrl = playerController ?: return
+            val refreshSessionKey = controllerSessionKey
+            if (refreshSessionKey != activePlaybackKey) {
+                PlayerRuntimeTrace.warn(
+                    "refreshTracks staleIgnored controllerKey=$refreshSessionKey active=$activePlaybackKey",
+                )
+                return
+            }
             audioTracks = ctrl.getAudioTracks()
             subtitleTracks = ctrl.getSubtitleTracks()
             val selectedAudio = audioTracks.firstOrNull { it.isSelected }
@@ -441,7 +502,9 @@ fun PlayerScreen(
                         language = { track -> track.language },
                     )
                     if (preferredAudioIndex >= 0 && preferredAudioIndex != selectedAudioIndex) {
-                        playerController?.selectAudioTrack(preferredAudioIndex)
+                        if (refreshSessionKey == activePlaybackKey) {
+                            ctrl.selectAudioTrack(preferredAudioIndex)
+                        }
                         selectedAudioIndex = preferredAudioIndex
                     }
                     preferredAudioSelectionApplied = true
@@ -457,7 +520,9 @@ fun PlayerScreen(
 
                 if (preferredSubtitleTargets.isEmpty()) {
                     if (selectedSubtitleIndex != -1 || subtitleTracks.any { it.isSelected }) {
-                        playerController?.selectSubtitleTrack(-1)
+                        if (refreshSessionKey == activePlaybackKey) {
+                            ctrl.selectSubtitleTrack(-1)
+                        }
                     }
                     selectedSubtitleIndex = -1
                     selectedAddonSubtitleId = null
@@ -469,7 +534,9 @@ fun PlayerScreen(
                         targets = preferredSubtitleTargets,
                     )
                     if (preferredSubtitleIndex >= 0 && preferredSubtitleIndex != selectedSubtitleIndex) {
-                        playerController?.selectSubtitleTrack(preferredSubtitleIndex)
+                        if (refreshSessionKey == activePlaybackKey) {
+                            ctrl.selectSubtitleTrack(preferredSubtitleIndex)
+                        }
                         selectedSubtitleIndex = preferredSubtitleIndex
                         selectedAddonSubtitleId = null
                         useCustomSubtitles = false
@@ -478,7 +545,9 @@ fun PlayerScreen(
                         normalizeLanguageCode(playerSettingsUiState.preferredSubtitleLanguage) == SubtitleLanguageOption.FORCED
                     ) {
                         if (selectedSubtitleIndex != -1 || subtitleTracks.any { it.isSelected }) {
-                            playerController?.selectSubtitleTrack(-1)
+                            if (refreshSessionKey == activePlaybackKey) {
+                                ctrl.selectSubtitleTrack(-1)
+                            }
                         }
                         selectedSubtitleIndex = -1
                         selectedAddonSubtitleId = null
@@ -507,46 +576,12 @@ fun PlayerScreen(
             liveGestureFeedback = null
         }
 
-        fun revealLockedOverlay() {
-            controlsVisible = false
-            lockedOverlayVisible = true
-        }
-
-        fun lockPlayerControls() {
-            playerControlsLocked = true
-            controlsVisible = false
-            lockedOverlayVisible = false
-            pausedOverlayVisible = false
-            scrubbingPositionMs = null
-            gestureMessageJob?.cancel()
-            gestureFeedback = null
-            liveGestureFeedback = null
-            renderedGestureFeedback = null
-            showAudioModal = false
-            showSubtitleModal = false
-            showSourcesPanel = false
-            showEpisodesPanel = false
-            episodeStreamsPanelState = EpisodeStreamsPanelState()
-            PlayerStreamsRepository.clearEpisodeStreams()
-        }
-
-        fun unlockPlayerControls() {
-            playerControlsLocked = false
-            lockedOverlayVisible = false
-            controlsVisible = true
-        }
-
         fun showSeekFeedback(direction: PlayerSeekDirection, amountMs: Long) {
             val seconds = amountMs / 1000L
             if (seconds <= 0L) return
             showGestureFeedback(
                 GestureFeedbackState(
-                    messageRes = if (direction == PlayerSeekDirection.Forward) {
-                        Res.string.compose_player_seek_feedback_forward
-                    } else {
-                        Res.string.compose_player_seek_feedback_backward
-                    },
-                    messageArgs = listOf(seconds),
+                    message = if (direction == PlayerSeekDirection.Forward) "+${seconds}s" else "-${seconds}s",
                     icon = if (direction == PlayerSeekDirection.Forward) {
                         GestureFeedbackIcon.SeekForward
                     } else {
@@ -566,12 +601,11 @@ fun PlayerScreen(
                 } else {
                     GestureFeedbackIcon.SeekBackward
                 },
-                secondaryMessageRes = if (deltaMs >= 0L) {
-                    Res.string.compose_player_seek_delta_forward
-                } else {
-                    Res.string.compose_player_seek_delta_backward
+                secondaryMessage = buildString {
+                    if (deltaMs >= 0L) append("+")
+                    append((abs(deltaMs) / 1000f).roundToInt())
+                    append("s")
                 },
-                secondaryMessageArgs = listOf((abs(deltaMs) / 1000f).roundToInt()),
                 secondaryMessageColor = if (direction == PlayerSeekDirection.Forward) {
                     Color(0xFF6EE7A8)
                 } else {
@@ -584,8 +618,7 @@ fun PlayerScreen(
             val percentage = (level.coerceIn(0f, 1f) * 100f).roundToInt()
             showGestureFeedback(
                 GestureFeedbackState(
-                    messageRes = Res.string.compose_player_brightness_level,
-                    messageArgs = listOf("$percentage%"),
+                    message = "Brightness $percentage%",
                     icon = GestureFeedbackIcon.Brightness,
                 ),
             )
@@ -595,12 +628,7 @@ fun PlayerScreen(
             val percentage = (level.fraction.coerceIn(0f, 1f) * 100f).roundToInt()
             showGestureFeedback(
                 GestureFeedbackState(
-                    messageRes = if (level.isMuted) {
-                        Res.string.compose_player_muted
-                    } else {
-                        Res.string.compose_player_volume_level
-                    },
-                    messageArgs = if (level.isMuted) emptyList() else listOf("$percentage%"),
+                    message = if (level.isMuted) "Muted" else "Volume $percentage%",
                     icon = if (level.isMuted) GestureFeedbackIcon.VolumeMuted else GestureFeedbackIcon.Volume,
                     isDanger = level.isMuted,
                 ),
@@ -655,6 +683,7 @@ fun PlayerScreen(
                 }
             }
             playerController?.seekTo(targetPositionMs)
+            controlsVisible = true
             showSeekFeedback(direction, nextState.amountMs)
 
             accumulatedSeekResetJob?.cancel()
@@ -668,14 +697,18 @@ fun PlayerScreen(
             val nextMode = resizeMode.next()
             resizeMode = nextMode
             PlayerSettingsRepository.setResizeMode(nextMode)
-            showGestureMessage(
-                when (nextMode) {
-                    PlayerResizeMode.Fit -> resizeModeFitLabel
-                    PlayerResizeMode.Fill -> resizeModeFillLabel
-                    PlayerResizeMode.Zoom -> resizeModeZoomLabel
-                },
-            )
+            showGestureMessage(nextMode.label)
             controlsVisible = true
+        }
+
+        fun toggleFullscreen() {
+            if (!fullscreenController.isFullscreenSupported) return
+            fullscreenController.toggleFullscreen()
+            controlsVisible = true
+            scope.launch {
+                delay(50)
+                playerFocusRequester.requestFocus()
+            }
         }
 
         fun cyclePlaybackSpeed() {
@@ -715,23 +748,19 @@ fun PlayerScreen(
         }
 
         val onSurfaceTap = rememberUpdatedState { offset: Offset ->
-            if (playerControlsLocked) {
-                revealLockedOverlay()
-                return@rememberUpdatedState
-            }
-            val centerStart = layoutSize.width * PlayerLeftGestureBoundary
-            val centerEnd = layoutSize.width * PlayerRightGestureBoundary
-            if (controlsVisible && offset.x in centerStart..centerEnd) {
-                controlsVisible = false
+            if (hoverDrivenChrome) {
+                setControlsVisibleFromHover.value(true)
             } else {
-                controlsVisible = !controlsVisible
+                val centerStart = layoutSize.width * PlayerLeftGestureBoundary
+                val centerEnd = layoutSize.width * PlayerRightGestureBoundary
+                if (controlsVisible && offset.x in centerStart..centerEnd) {
+                    controlsVisible = false
+                } else {
+                    controlsVisible = !controlsVisible
+                }
             }
         }
         val onSurfaceDoubleTap = rememberUpdatedState { offset: Offset ->
-            if (playerControlsLocked) {
-                revealLockedOverlay()
-                return@rememberUpdatedState
-            }
             when {
                 offset.x < layoutSize.width * PlayerLeftGestureBoundary -> {
                     handleDoubleTapSeek(PlayerSeekDirection.Backward)
@@ -740,6 +769,8 @@ fun PlayerScreen(
                 offset.x > layoutSize.width * PlayerRightGestureBoundary -> {
                     handleDoubleTapSeek(PlayerSeekDirection.Forward)
                 }
+
+                hoverDrivenChrome -> setControlsVisibleFromHover.value(true)
 
                 else -> controlsVisible = !controlsVisible
             }
@@ -750,9 +781,7 @@ fun PlayerScreen(
         val showBrightnessFeedbackState = rememberUpdatedState(::showBrightnessFeedback)
         val showVolumeFeedbackState = rememberUpdatedState(::showVolumeFeedback)
         val clearLiveGestureFeedbackState = rememberUpdatedState(::clearLiveGestureFeedback)
-        val revealLockedOverlayState = rememberUpdatedState(::revealLockedOverlay)
         val isHoldToSpeedGestureActiveState = rememberUpdatedState(isHoldToSpeedGestureActive)
-        val playerControlsLockedState = rememberUpdatedState(playerControlsLocked)
         val currentPositionMsState = rememberUpdatedState(playbackSnapshot.positionMs.coerceAtLeast(0L))
         val currentDurationMsState = rememberUpdatedState(playbackSnapshot.durationMs)
         val commitHorizontalSeekState = rememberUpdatedState { targetPositionMs: Long ->
@@ -761,7 +790,18 @@ fun PlayerScreen(
 
         fun switchToSource(stream: StreamItem) {
             val url = stream.directPlaybackUrl ?: return
-            if (url == activeSourceUrl) return
+            val nextHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
+            val nextResponseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response)
+            val isSamePlaybackIdentity =
+                url == activeSourceUrl &&
+                    nextHeaders == activeSourceHeaders &&
+                    nextResponseHeaders == activeSourceResponseHeaders &&
+                    stream.addonId == activeProviderAddonId
+            if (isSamePlaybackIdentity) return
+            PlayerRuntimeTrace.info(
+                "switchSource requested key=$activePlaybackKey " +
+                    "from=${activeSourceUrl.safeMediaHash()} to=${url.safeMediaHash()}",
+            )
             val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
             flushWatchProgress()
             if (playerSettingsUiState.streamReuseLastLinkEnabled && activeVideoId != null) {
@@ -784,8 +824,8 @@ fun PlayerScreen(
             }
             activeSourceUrl = url
             activeSourceAudioUrl = null
-            activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
-            activeSourceResponseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response)
+            activeSourceHeaders = nextHeaders
+            activeSourceResponseHeaders = nextResponseHeaders
             activeStreamTitle = stream.streamLabel
             activeStreamSubtitle = stream.streamSubtitle
             activeProviderName = stream.addonName
@@ -793,12 +833,17 @@ fun PlayerScreen(
             currentStreamBingeGroup = stream.behaviorHints.bingeGroup
             activeInitialPositionMs = currentPositionMs
             activeInitialProgressFraction = null
+            playbackSessionNonce += 1
             showSourcesPanel = false
             controlsVisible = true
         }
 
         fun switchToEpisodeStream(stream: StreamItem, episode: MetaVideo) {
             val url = stream.directPlaybackUrl ?: return
+            PlayerRuntimeTrace.info(
+                "switchEpisode requested key=$activePlaybackKey " +
+                    "toEpisode=${episode.season}:${episode.episode} to=${url.safeMediaHash()}",
+            )
             showNextEpisodeCard = false
             showSourcesPanel = false
             showEpisodesPanel = false
@@ -858,11 +903,12 @@ fun PlayerScreen(
             activeVideoId = episode.id
             activeInitialPositionMs = epResumePositionMs
             activeInitialProgressFraction = epResumeFraction
+            playbackSessionNonce += 1
             controlsVisible = true
         }
 
         fun switchToDownloadedEpisode(downloadItem: DownloadItem, episode: MetaVideo) {
-            val localFileUri = DownloadsRepository.playableLocalFileUri(downloadItem) ?: return
+            val localFileUri = downloadItem.localFileUri ?: return
             showNextEpisodeCard = false
             showSourcesPanel = false
             showEpisodesPanel = false
@@ -896,7 +942,7 @@ fun PlayerScreen(
                 episode.title.ifBlank { title }
             }
             activeStreamSubtitle = downloadItem.streamSubtitle
-            activeProviderName = downloadItem.providerName.ifBlank { downloadedLabel }
+            activeProviderName = downloadItem.providerName.ifBlank { "Downloaded" }
             activeProviderAddonId = downloadItem.providerAddonId
             currentStreamBingeGroup = null
             activeSeasonNumber = episode.season
@@ -906,6 +952,7 @@ fun PlayerScreen(
             activeVideoId = resolvedVideoId
             activeInitialPositionMs = epResumePositionMs
             activeInitialProgressFraction = epResumeFraction
+            playbackSessionNonce += 1
             controlsVisible = true
         }
 
@@ -1060,21 +1107,22 @@ fun PlayerScreen(
             controlsVisible = false
         }
 
-        fun fetchAddonSubtitlesForActiveItem() {
-            val type = contentType ?: return
-            val videoId = activeVideoId ?: return
-            SubtitleRepository.fetchAddonSubtitles(type, videoId)
-        }
-
-        LaunchedEffect(activeSourceUrl, activeSourceAudioUrl, activeSourceHeaders, activeSourceResponseHeaders) {
+        LaunchedEffect(activePlaybackKey, activeSourceUrl, activeSourceAudioUrl, activeSourceHeaders, activeSourceResponseHeaders) {
+            PlayerRuntimeTrace.info(
+                "sessionStart key=$activePlaybackKey videoId=${activeVideoId.orEmpty()} " +
+                    "episode=${activeSeasonNumber ?: -1}:${activeEpisodeNumber ?: -1} " +
+                    "source=${activeSourceUrl.safeMediaHash()} audio=${activeSourceAudioUrl?.safeMediaHash() ?: "none"}",
+            )
             errorMessage = null
             playerController = null
             playerControllerSourceUrl = null
+            controllerSessionKey = null
+            activeSessionPlayerReady = false
+            activeSessionMediaReady = false
             playbackSnapshot = PlayerPlaybackSnapshot()
             scrubbingPositionMs = null
             liveGestureFeedback = null
             renderedGestureFeedback = null
-            lockedOverlayVisible = false
             initialLoadCompleted = false
             lastProgressPersistEpochMs = 0L
             previousIsPlaying = false
@@ -1096,11 +1144,28 @@ fun PlayerScreen(
             playerController?.applySubtitleStyle(subtitleStyle)
         }
 
-        LaunchedEffect(showSubtitleModal, activeSubtitleTab, contentType, activeVideoId) {
-            if (!showSubtitleModal || activeSubtitleTab != SubtitleTab.Addons) return@LaunchedEffect
-            if (!isLoadingAddonSubtitles && addonSubtitles.isEmpty()) {
-                fetchAddonSubtitlesForActiveItem()
-            }
+        LaunchedEffect(playerController, addonSubtitles, isLoadingAddonSubtitles) {
+            playerController?.pushAddonSubtitles(addonSubtitles, isLoadingAddonSubtitles)
+        }
+
+        LaunchedEffect(playerController, sourceStreamsState) {
+            playerController?.pushSourceData(
+                streams = sourceStreamsState.allStreams,
+                groups = sourceStreamsState.groups,
+                loading = sourceStreamsState.isAnyLoading,
+                selectedFilter = sourceStreamsState.selectedFilter,
+                currentStreamUrl = activeSourceUrl,
+            )
+        }
+
+        LaunchedEffect(playerController, episodeStreamsRepoState) {
+            playerController?.pushEpisodeStreamsData(
+                streams = episodeStreamsRepoState.allStreams,
+                groups = episodeStreamsRepoState.groups,
+                loading = episodeStreamsRepoState.isAnyLoading,
+                selectedFilter = episodeStreamsRepoState.selectedFilter,
+                currentStreamUrl = activeSourceUrl,
+            )
         }
 
         LaunchedEffect(playbackSnapshot.isLoading, playerController) {
@@ -1163,25 +1228,31 @@ fun PlayerScreen(
                 initialSeekApplied = true
                 return@LaunchedEffect
             }
+            if (playbackSnapshot.durationMs <= 0L) {
+                return@LaunchedEffect
+            }
 
             controller.seekTo(targetPositionMs)
             initialSeekApplied = true
         }
 
-        LaunchedEffect(controlsVisible, playbackSnapshot.isPlaying, playbackSnapshot.isLoading, errorMessage) {
-            if (!controlsVisible || !playbackSnapshot.isPlaying || playbackSnapshot.isLoading || errorMessage != null) {
+        LaunchedEffect(
+            controlsVisible,
+            pointerActivitySerial,
+            playbackSnapshot.isLoading,
+            playbackSnapshot.isEnded,
+            errorMessage,
+        ) {
+            if (!controlsVisible || playbackSnapshot.isLoading || playbackSnapshot.isEnded || errorMessage != null) {
                 return@LaunchedEffect
             }
-            delay(3500)
+            delay(PlayerControlsAutoHideDelayMs)
             controlsVisible = false
-        }
-
-        LaunchedEffect(playerControlsLocked, lockedOverlayVisible) {
-            if (!playerControlsLocked || !lockedOverlayVisible) {
-                return@LaunchedEffect
+            isHovering = false
+            if (hoverDrivenChrome) {
+                delay(PlayerCursorAutoHideDelayMs)
+                cursorVisible = false
             }
-            delay(PlayerLockedOverlayDurationMs)
-            lockedOverlayVisible = false
         }
 
         LaunchedEffect(playbackSnapshot.isPlaying, playbackSnapshot.isLoading, playbackSnapshot.durationMs, errorMessage) {
@@ -1193,20 +1264,15 @@ fun PlayerScreen(
             pausedOverlayVisible = true
         }
 
-        LaunchedEffect(
-            playbackSnapshot.positionMs,
-            playbackSnapshot.isPlaying,
-            playbackSnapshot.isLoading,
-            playbackSnapshot.isEnded,
-            playbackSnapshot.durationMs,
-        ) {
+        LaunchedEffect(playbackSnapshot.positionMs, playbackSnapshot.isPlaying, playbackSnapshot.isEnded, playbackSnapshot.durationMs) {
             if (playbackSnapshot.isEnded) {
+                hasSentCompletionScrobbleForCurrentItem = false
                 flushWatchProgress()
                 previousIsPlaying = false
                 return@LaunchedEffect
             }
 
-            if (previousIsPlaying && !playbackSnapshot.isPlaying && !playbackSnapshot.isLoading) {
+            if (previousIsPlaying && !playbackSnapshot.isPlaying) {
                 flushWatchProgress()
             }
 
@@ -1214,9 +1280,7 @@ fun PlayerScreen(
                 emitTraktScrobbleStart()
             }
 
-            if (!playbackSnapshot.isLoading) {
-                previousIsPlaying = playbackSnapshot.isPlaying
-            }
+            previousIsPlaying = playbackSnapshot.isPlaying
 
             if (!playbackSnapshot.isPlaying) {
                 return@LaunchedEffect
@@ -1275,6 +1339,30 @@ fun PlayerScreen(
             }
         }
 
+        LaunchedEffect(activeSkipInterval, skipIntervalDismissed) {
+            val interval = activeSkipInterval
+            if (interval != null && !skipIntervalDismissed) {
+                playerController?.showSkipButton(interval.type, (interval.endTime * 1000).toLong())
+            } else {
+                playerController?.hideSkipButton()
+            }
+        }
+
+        LaunchedEffect(showNextEpisodeCard, nextEpisodeInfo) {
+            val info = nextEpisodeInfo
+            if (showNextEpisodeCard && info != null) {
+                playerController?.showNextEpisode(
+                    season = info.season,
+                    episode = info.episode,
+                    title = info.title ?: "",
+                    thumbnail = info.thumbnail,
+                    hasAired = info.hasAired,
+                )
+            } else {
+                playerController?.hideNextEpisode()
+            }
+        }
+
         // Resolve next episode info when episodes list or current episode changes
         LaunchedEffect(allEpisodes, activeSeasonNumber, activeEpisodeNumber) {
             if (!isSeries || allEpisodes.isEmpty()) {
@@ -1299,7 +1387,7 @@ fun PlayerScreen(
                     released = nextVideo.released,
                     hasAired = PlayerNextEpisodeRules.hasEpisodeAired(nextVideo.released),
                     unairedMessage = if (!PlayerNextEpisodeRules.hasEpisodeAired(nextVideo.released)) {
-                        "$airsPrefix ${nextVideo.released ?: tbaLabel}"
+                        "Airs ${nextVideo.released ?: "TBA"}"
                     } else null,
                 )
             } else null
@@ -1360,10 +1448,49 @@ fun PlayerScreen(
             }
         }
 
+        LaunchedEffect(Unit) {
+            playerFocusRequester.requestFocus()
+        }
+
+        LaunchedEffect(fullscreenController.isFullscreen) {
+            playerFocusRequester.requestFocus()
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyUp && event.key == Key.F) {
+                        toggleFullscreen()
+                        true
+                    } else {
+                        false
+                    }
+                }
+                .focusRequester(playerFocusRequester)
+                .focusable()
                 .onSizeChanged { layoutSize = it }
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        var lastPosition: Offset? = null
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull()
+                            if (change != null) {
+                                val currentPos = change.position
+                                val moved = lastPosition == null || currentPos != lastPosition
+                                lastPosition = currentPos
+                                if (moved) {
+                                    val wasHovering = isHovering
+                                    setControlsVisibleFromHover.value(true)
+                                    if (!wasHovering) {
+                                        PlayerRuntimeTrace.info("desktopPointer moved - show overlay")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 .pointerInput(layoutSize) {
                     detectTapGestures(
                         onPress = {
@@ -1372,27 +1499,12 @@ fun PlayerScreen(
                         },
                         onTap = { offset -> onSurfaceTap.value(offset) },
                         onDoubleTap = { offset -> onSurfaceDoubleTap.value(offset) },
-                        onLongPress = {
-                            if (playerControlsLockedState.value) {
-                                revealLockedOverlayState.value()
-                            } else {
-                                activateHoldToSpeedState.value()
-                            }
-                        },
+                        onLongPress = { activateHoldToSpeedState.value() },
                     )
                 }
                 .pointerInput(gestureController, layoutSize) {
                     awaitEachGesture {
                         val down = awaitFirstDown()
-                        if (playerControlsLockedState.value) {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                if (!change.pressed) break
-                                change.consume()
-                            }
-                            return@awaitEachGesture
-                        }
                         val controller = gestureController
                         val width = size.width.toFloat().takeIf { it > 0f } ?: return@awaitEachGesture
                         val height = size.height.toFloat().takeIf { it > 0f } ?: return@awaitEachGesture
@@ -1506,49 +1618,236 @@ fun PlayerScreen(
                     }
                 },
         ) {
-            PlatformPlayerSurface(
+            // Keep the desktop surface mounted across source changes. The
+            // backend receives the new request and reloads media in the same
+            // player, matching the original cmp-rewrite switching model and
+            // avoiding GL/surface churn while the loading overlay is visible.
+            val surfaceSessionKey = activePlaybackKey
+            if (errorMessage == null) {
+                SideEffect {
+                    PlayerRuntimeTrace.info(
+                        "renderBranch surfaceMounted key=$surfaceSessionKey " +
+                            "controllerKey=$controllerSessionKey openingReady=$activeSessionPlayerReady mediaReady=$activeSessionMediaReady",
+                    )
+                }
+                PlatformPlayerSurface(
                 sourceUrl = activeSourceUrl,
                 sourceAudioUrl = activeSourceAudioUrl,
                 sourceHeaders = activeSourceHeaders,
                 sourceResponseHeaders = activeSourceResponseHeaders,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onGloballyPositioned { coords ->
+                        val pos = coords.positionInWindow()
+                        val size = coords.size
+                        val marker = "${pos.x.toInt()},${pos.y.toInt()},${size.width}x${size.height}"
+                        if (lastSurfaceBoundsLog != marker) {
+                            lastSurfaceBoundsLog = marker
+                            PlayerRuntimeTrace.info(
+                                "surfaceBounds key=$activePlaybackKey bounds=$marker",
+                            )
+                        }
+                    },
                 playWhenReady = shouldPlay,
                 resizeMode = resizeMode,
                 onControllerReady = { controller ->
-                    playerController = controller
-                    playerControllerSourceUrl = activeSourceUrl
-                },
-                onSnapshot = { snapshot ->
-                    playbackSnapshot = snapshot
-                    if (!snapshot.isLoading) {
-                        initialLoadCompleted = true
-                    }
-                    if (snapshot.isEnded) {
-                        shouldPlay = false
-                        controlsVisible = !playerControlsLocked
-                    }
-                },
-                onError = { message ->
-                    errorMessage = message
-                    if (message != null) {
-                        controlsVisible = !playerControlsLocked
-                        val currentVideoId = activeVideoId
-                        if (currentVideoId != null) {
-                            val cacheKey = StreamLinkCacheRepository.contentKey(
-                                contentType ?: parentMetaType,
-                                currentVideoId,
+                    if (surfaceSessionKey != activePlaybackKey) {
+                        PlayerRuntimeTrace.warn(
+                            "onControllerReady staleIgnored surface=$surfaceSessionKey active=$activePlaybackKey",
+                        )
+                        controller.release()
+                    } else {
+                        playerController = controller
+                        controllerSessionKey = surfaceSessionKey
+                        playerControllerSourceUrl = activeSourceUrl
+                        activeSessionPlayerReady = true
+                        PlayerRuntimeTrace.info(
+                            "onControllerReady key=$surfaceSessionKey controllerId=${controller.identityId()} " +
+                                "source=${activeSourceUrl.safeMediaHash()}",
+                        )
+                        fun isActiveControllerCallback(name: String): Boolean {
+                            if (controllerSessionKey == activePlaybackKey) return true
+                            PlayerRuntimeTrace.warn(
+                                "$name staleIgnored controllerKey=$controllerSessionKey active=$activePlaybackKey",
                             )
-                            StreamLinkCacheRepository.remove(cacheKey)
+                            return false
+                        }
+                        controller.setMetadata(
+                            title = title,
+                            streamTitle = activeStreamTitle,
+                            providerName = activeProviderName,
+                            seasonNumber = activeSeasonNumber,
+                            episodeNumber = activeEpisodeNumber,
+                            episodeTitle = activeEpisodeTitle,
+                            artwork = backdropArtwork,
+                            logo = logo,
+                        )
+                        controller.setPlayerFlags(
+                            hasVideoId = activeVideoId != null,
+                            isSeries = parentMetaType == "series",
+                        )
+                        controller.setOnCloseCallback {
+                            if (isActiveControllerCallback("closeCallback")) {
+                                onBackWithProgress()
+                            }
+                        }
+                        controller.setOnAddonSubtitlesFetchCallback {
+                            if (!isActiveControllerCallback("addonSubtitlesCallback")) return@setOnAddonSubtitlesFetchCallback
+                            if (contentType != null && activeVideoId != null) {
+                                SubtitleRepository.fetchAddonSubtitles(contentType, activeVideoId!!)
+                            }
+                        }
+                        controller.setOnSourcesRequestedCallback {
+                            if (!isActiveControllerCallback("sourcesRequestedCallback")) return@setOnSourcesRequestedCallback
+                            val type = contentType ?: parentMetaType
+                            val vid = activeVideoId ?: return@setOnSourcesRequestedCallback
+                            PlayerStreamsRepository.loadSources(
+                                type = type,
+                                videoId = vid,
+                                season = activeSeasonNumber,
+                                episode = activeEpisodeNumber,
+                            )
+                        }
+                        controller.setOnSourceStreamSelectedCallback { url ->
+                            if (controllerSessionKey != activePlaybackKey) {
+                                PlayerRuntimeTrace.warn(
+                                    "sourceCallback staleIgnored controllerKey=$controllerSessionKey active=$activePlaybackKey",
+                                )
+                                return@setOnSourceStreamSelectedCallback
+                            }
+                            val allStreams = PlayerStreamsRepository.sourceState.value.allStreams
+                            val stream = allStreams.firstOrNull { it.directPlaybackUrl == url }
+                                ?: return@setOnSourceStreamSelectedCallback
+                            switchToSource(stream)
+                        }
+                        controller.setOnSourceFilterChangedCallback { addonId ->
+                            if (!isActiveControllerCallback("sourceFilterCallback")) return@setOnSourceFilterChangedCallback
+                            PlayerStreamsRepository.selectSourceFilter(addonId)
+                        }
+                        controller.setOnSourceReloadCallback {
+                            if (!isActiveControllerCallback("sourceReloadCallback")) return@setOnSourceReloadCallback
+                            val type = contentType ?: parentMetaType
+                            val vid = activeVideoId ?: return@setOnSourceReloadCallback
+                            PlayerStreamsRepository.loadSources(
+                                type = type,
+                                videoId = vid,
+                                season = activeSeasonNumber,
+                                episode = activeEpisodeNumber,
+                                forceRefresh = true,
+                            )
+                        }
+                        controller.setOnEpisodesRequestedCallback {
+                            if (!isActiveControllerCallback("episodesRequestedCallback")) return@setOnEpisodesRequestedCallback
+                            scope.launch {
+                                if (!isActiveControllerCallback("episodesRequestedCallback")) return@launch
+                                if (playerMetaVideos.isEmpty()) {
+                                    playerMetaVideos = MetaDetailsRepository.fetch(parentMetaType, parentMetaId)?.videos ?: emptyList()
+                                }
+                                if (!isActiveControllerCallback("episodesRequestedCallback")) return@launch
+                                controller.pushEpisodes(playerMetaVideos)
+                            }
+                        }
+                        controller.setOnEpisodeSelectedCallback { episodeId ->
+                            if (!isActiveControllerCallback("episodeSelectedCallback")) return@setOnEpisodeSelectedCallback
+                            val episode = playerMetaVideos.firstOrNull { it.id == episodeId }
+                                ?: return@setOnEpisodeSelectedCallback
+                            episodeStreamsPanelState = episodeStreamsPanelState.copy(
+                                showStreams = true,
+                                selectedEpisode = episode,
+                            )
+                            val type = contentType ?: parentMetaType
+                            PlayerStreamsRepository.loadEpisodeStreams(
+                                type = type,
+                                videoId = episode.id,
+                                season = episode.season,
+                                episode = episode.episode,
+                            )
+                            controller.showEpisodeStreamsView(episode.season, episode.episode, episode.title)
+                        }
+                        controller.setOnEpisodeStreamSelectedCallback { url ->
+                            if (controllerSessionKey != activePlaybackKey) {
+                                PlayerRuntimeTrace.warn(
+                                    "episodeCallback staleIgnored controllerKey=$controllerSessionKey active=$activePlaybackKey",
+                                )
+                                return@setOnEpisodeStreamSelectedCallback
+                            }
+                            val allStreams = PlayerStreamsRepository.episodeStreamsState.value.allStreams
+                            val stream = allStreams.firstOrNull { it.directPlaybackUrl == url }
+                                ?: return@setOnEpisodeStreamSelectedCallback
+                            val episode = playerMetaVideos.firstOrNull { it.id == episodeStreamsPanelState.selectedEpisode?.id }
+                                ?: return@setOnEpisodeStreamSelectedCallback
+                            switchToEpisodeStream(stream, episode)
+                        }
+                        controller.setOnEpisodeFilterChangedCallback { addonId ->
+                            if (!isActiveControllerCallback("episodeFilterCallback")) return@setOnEpisodeFilterChangedCallback
+                            PlayerStreamsRepository.selectEpisodeStreamsFilter(addonId)
+                        }
+                        controller.setOnEpisodeReloadCallback {
+                            if (!isActiveControllerCallback("episodeReloadCallback")) return@setOnEpisodeReloadCallback
+                            val episode = episodeStreamsPanelState.selectedEpisode ?: return@setOnEpisodeReloadCallback
+                            val type = contentType ?: parentMetaType
+                            PlayerStreamsRepository.loadEpisodeStreams(
+                                type = type,
+                                videoId = episode.id,
+                                season = episode.season,
+                                episode = episode.episode,
+                                forceRefresh = true,
+                            )
+                        }
+                        controller.setOnEpisodeBackCallback {
+                            if (!isActiveControllerCallback("episodeBackCallback")) return@setOnEpisodeBackCallback
+                            episodeStreamsPanelState = EpisodeStreamsPanelState()
+                            PlayerStreamsRepository.clearEpisodeStreams()
                         }
                     }
                 },
-            )
+                onSnapshot = { snapshot ->
+                    if (surfaceSessionKey == activePlaybackKey && controllerSessionKey == surfaceSessionKey) {
+                        val mediaReady =
+                            snapshot.durationMs > 0L ||
+                                snapshot.positionMs > 0L ||
+                                snapshot.isEnded
+                        if (snapshot.isPlaying || mediaReady) {
+                            activeSessionPlayerReady = true
+                        }
+                        if (mediaReady) {
+                            activeSessionMediaReady = true
+                        }
+                        playbackSnapshot = snapshot
+                        if (mediaReady) {
+                            initialLoadCompleted = true
+                        }
+                        PlayerRuntimeTrace.info(
+                            "snapshot key=$surfaceSessionKey playing=${snapshot.isPlaying} " +
+                                "loading=${snapshot.isLoading} ended=${snapshot.isEnded} " +
+                                "posMs=${snapshot.positionMs} durationMs=${snapshot.durationMs} mediaReady=$mediaReady",
+                        )
+                        if (snapshot.isEnded) {
+                            shouldPlay = false
+                            controlsVisible = true
+                        }
+                    } else {
+                        PlayerRuntimeTrace.warn(
+                            "snapshot staleIgnored surface=$surfaceSessionKey active=$activePlaybackKey controllerKey=$controllerSessionKey",
+                        )
+                    }
+                },
+                onError = { message ->
+                    if (surfaceSessionKey == activePlaybackKey) {
+                        errorMessage = message
+                        if (message != null) {
+                            shouldPlay = false
+                            playerController?.release()
+                            playerController = null
+                            playerControllerSourceUrl = null
+                            controlsVisible = true
+                        }
+                    }
+                },
+                )
+            }
 
-            AnimatedVisibility(
-                visible = pausedOverlayVisible && !controlsVisible && !playerControlsLocked,
-                enter = fadeIn(animationSpec = tween(durationMillis = 220)),
-                exit = fadeOut(animationSpec = tween(durationMillis = 180)),
-            ) {
+            if (!usesNativePlayerChrome && pausedOverlayVisible && !controlsVisible) {
                 PauseMetadataOverlay(
                     title = title,
                     logo = logo,
@@ -1564,127 +1863,246 @@ fun PlayerScreen(
                 )
             }
 
-            AnimatedVisibility(
-                visible = controlsVisible && !playerControlsLocked,
-                enter = fadeIn(),
-                exit = fadeOut(),
-            ) {
-                PlayerControlsShell(
-                    title = title,
-                    streamTitle = activeStreamTitle,
-                    providerName = activeProviderName,
-                    seasonNumber = activeSeasonNumber,
-                    episodeNumber = activeEpisodeNumber,
-                    episodeTitle = activeEpisodeTitle,
-                    playbackSnapshot = playbackSnapshot,
-                    displayedPositionMs = displayedPositionMs,
-                    metrics = metrics,
-                    resizeMode = resizeMode,
-                    isLocked = playerControlsLocked,
-                    onLockToggle = {
-                        if (playerControlsLocked) {
-                            unlockPlayerControls()
-                        } else {
-                            lockPlayerControls()
-                        }
-                    },
-                    onBack = onBackWithProgress,
-                    onTogglePlayback = ::togglePlayback,
-                    onSeekBack = { seekBy(-10_000L) },
-                    onSeekForward = { seekBy(10_000L) },
-                    onResizeModeClick = ::cycleResizeMode,
-                    onSpeedClick = ::cyclePlaybackSpeed,
-                    onSubtitleClick = {
-                        refreshTracks()
-                        showSubtitleModal = true
-                    },
-                    onAudioClick = {
-                        refreshTracks()
-                        showAudioModal = true
-                    },
-                    onSourcesClick = if (activeVideoId != null) {{ openSourcesPanel() }} else null,
-                    onEpisodesClick = if (isSeries) {{ openEpisodesPanel() }} else null,
-                    onScrubChange = { positionMs -> scrubbingPositionMs = positionMs },
-                    onScrubFinished = { positionMs ->
-                        scrubbingPositionMs = null
-                        playerController?.seekTo(positionMs)
-                    },
-                    horizontalSafePadding = horizontalSafePadding,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-
-            AnimatedVisibility(
-                visible = playerControlsLocked && lockedOverlayVisible,
-                enter = fadeIn(),
-                exit = fadeOut(),
-            ) {
-                LockedPlayerOverlay(
-                    playbackSnapshot = playbackSnapshot,
-                    displayedPositionMs = displayedPositionMs,
-                    metrics = metrics,
-                    horizontalSafePadding = horizontalSafePadding,
-                    onUnlock = ::unlockPlayerControls,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-
-            AnimatedVisibility(
-                visible = playerSettingsUiState.showLoadingOverlay && !initialLoadCompleted && errorMessage == null,
-                enter = fadeIn(),
-                exit = fadeOut(),
-            ) {
-                OpeningOverlay(
-                    artwork = backdropArtwork,
-                    logo = logo,
-                    title = title,
-                    onBack = onBackWithProgress,
-                    horizontalSafePadding = horizontalSafePadding,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-
-            AnimatedVisibility(
-                visible = currentGestureFeedback != null,
-                enter = fadeIn(),
-                exit = fadeOut(),
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    renderedGestureFeedback?.let { feedback ->
-                        GestureFeedbackPill(
-                            feedback = feedback,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
-                                .padding(horizontal = horizontalSafePadding)
-                                .padding(top = 40.dp),
+            if (!usesNativePlayerChrome) {
+                if (usesAnimatedPlayerChrome) {
+                    AnimatedVisibility(
+                        visible = controlsVisible,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        PlayerControlsShell(
+                            title = title,
+                            streamTitle = activeStreamTitle,
+                            providerName = activeProviderName,
+                            seasonNumber = activeSeasonNumber,
+                            episodeNumber = activeEpisodeNumber,
+                            episodeTitle = activeEpisodeTitle,
+                            playbackSnapshot = playbackSnapshot,
+                            displayedPositionMs = displayedPositionMs,
+                            metrics = metrics,
+                            resizeMode = resizeMode,
+                            isFullscreenSupported = fullscreenController.isFullscreenSupported,
+                            isFullscreen = fullscreenController.isFullscreen,
+                            onBack = onBackWithProgress,
+                            onTogglePlayback = ::togglePlayback,
+                            onSeekBack = { seekBy(-10_000L) },
+                            onSeekForward = { seekBy(10_000L) },
+                            onResizeModeClick = ::cycleResizeMode,
+                            onFullscreenClick = ::toggleFullscreen,
+                            onSpeedClick = ::cyclePlaybackSpeed,
+                            onSubtitleClick = {
+                                refreshTracks()
+                                showSubtitleModal = true
+                            },
+                            onAudioClick = {
+                                refreshTracks()
+                                showAudioModal = true
+                            },
+                            onSourcesClick = if (activeVideoId != null) {{ openSourcesPanel() }} else null,
+                            onEpisodesClick = if (isSeries) {{ openEpisodesPanel() }} else null,
+                            onScrubChange = { positionMs -> scrubbingPositionMs = positionMs },
+                            onScrubFinished = { positionMs ->
+                                scrubbingPositionMs = null
+                                playerController?.seekTo(positionMs)
+                            },
+                            horizontalSafePadding = horizontalSafePadding,
+                            modifier = Modifier.fillMaxSize(),
                         )
+                    }
+                } else if (controlsVisible) {
+                    PlayerControlsShell(
+                        title = title,
+                        streamTitle = activeStreamTitle,
+                        providerName = activeProviderName,
+                        seasonNumber = activeSeasonNumber,
+                        episodeNumber = activeEpisodeNumber,
+                        episodeTitle = activeEpisodeTitle,
+                        playbackSnapshot = playbackSnapshot,
+                        displayedPositionMs = displayedPositionMs,
+                        metrics = metrics,
+                        resizeMode = resizeMode,
+                        isFullscreenSupported = fullscreenController.isFullscreenSupported,
+                        isFullscreen = fullscreenController.isFullscreen,
+                        onBack = onBackWithProgress,
+                        onTogglePlayback = ::togglePlayback,
+                        onSeekBack = { seekBy(-10_000L) },
+                        onSeekForward = { seekBy(10_000L) },
+                        onResizeModeClick = ::cycleResizeMode,
+                        onFullscreenClick = ::toggleFullscreen,
+                        onSpeedClick = ::cyclePlaybackSpeed,
+                        onSubtitleClick = {
+                            refreshTracks()
+                            showSubtitleModal = true
+                        },
+                        onAudioClick = {
+                            refreshTracks()
+                            showAudioModal = true
+                        },
+                        onSourcesClick = if (activeVideoId != null) {{ openSourcesPanel() }} else null,
+                        onEpisodesClick = if (isSeries) {{ openEpisodesPanel() }} else null,
+                        onScrubChange = { positionMs -> scrubbingPositionMs = positionMs },
+                        onScrubFinished = { positionMs ->
+                            scrubbingPositionMs = null
+                            playerController?.seekTo(positionMs)
+                        },
+                        horizontalSafePadding = horizontalSafePadding,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                val showOpeningOverlay =
+                    playerSettingsUiState.showLoadingOverlay &&
+                        !initialLoadCompleted &&
+                        errorMessage == null
+                val uiVisualPhase = when {
+                    errorMessage != null -> "Error"
+                    showOpeningOverlay -> "OpeningOverlay"
+                    activeSessionPlayerReady && playbackSnapshot.isLoading -> "BufferingAfterReady"
+                    activeSessionPlayerReady -> "PlayerVisible"
+                    else -> "MountingPlayer"
+                }
+                LaunchedEffect(
+                    uiVisualPhase,
+                    activePlaybackKey,
+                    shouldPlay,
+                    controlsVisible,
+                    playbackSnapshot.isLoading,
+                    playbackSnapshot.isPlaying,
+                ) {
+                    if (lastVisualPhase != uiVisualPhase) {
+                        lastVisualPhase = uiVisualPhase
+                        PlayerRuntimeTrace.info(
+                            "uiPhase key=$activePlaybackKey phase=$uiVisualPhase " +
+                                "posterVisible=$showOpeningOverlay controlsVisible=$controlsVisible " +
+                                "overlayInteractable=$controlsVisible shouldPlay=$shouldPlay " +
+                                "snapshotLoading=${playbackSnapshot.isLoading} snapshotPlaying=${playbackSnapshot.isPlaying}",
+                        )
+                    }
+                }
+                if (usesAnimatedPlayerChrome) {
+                    AnimatedVisibility(
+                        visible = showOpeningOverlay,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        SideEffect {
+                            PlayerRuntimeTrace.info(
+                                "renderBranch openingOverlay mounted key=$activePlaybackKey animated=true",
+                            )
+                        }
+                        OpeningOverlay(
+                            artwork = backdropArtwork,
+                            logo = logo,
+                            title = title,
+                            onBack = onBackWithProgress,
+                            horizontalSafePadding = horizontalSafePadding,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .onGloballyPositioned { coords ->
+                                    val pos = coords.positionInWindow()
+                                    val size = coords.size
+                                    val marker = "${pos.x.toInt()},${pos.y.toInt()},${size.width}x${size.height}"
+                                    if (lastOpeningOverlayBoundsLog != marker) {
+                                        lastOpeningOverlayBoundsLog = marker
+                                        PlayerRuntimeTrace.info(
+                                            "openingOverlayBounds key=$activePlaybackKey bounds=$marker",
+                                        )
+                                    }
+                                },
+                        )
+                    }
+                } else if (showOpeningOverlay) {
+                    SideEffect {
+                        PlayerRuntimeTrace.info(
+                            "renderBranch openingOverlay mounted key=$activePlaybackKey animated=false",
+                        )
+                    }
+                    OpeningOverlay(
+                        artwork = backdropArtwork,
+                        logo = logo,
+                        title = title,
+                        onBack = onBackWithProgress,
+                        horizontalSafePadding = horizontalSafePadding,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .onGloballyPositioned { coords ->
+                                val pos = coords.positionInWindow()
+                                val size = coords.size
+                                val marker = "${pos.x.toInt()},${pos.y.toInt()},${size.width}x${size.height}"
+                                if (lastOpeningOverlayBoundsLog != marker) {
+                                    lastOpeningOverlayBoundsLog = marker
+                                    PlayerRuntimeTrace.info(
+                                        "openingOverlayBounds key=$activePlaybackKey bounds=$marker",
+                                    )
+                                }
+                            },
+                    )
+                }
+
+                val showGestureFeedback = currentGestureFeedback != null
+                SideEffect {
+                    PlayerRuntimeTrace.info(
+                        "renderBranch overlays key=$activePlaybackKey controlsVisible=$controlsVisible " +
+                            "gestureVisible=$showGestureFeedback errorPresent=${errorMessage != null}",
+                    )
+                }
+                if (usesAnimatedPlayerChrome) {
+                    AnimatedVisibility(
+                        visible = showGestureFeedback,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            renderedGestureFeedback?.let { feedback ->
+                                GestureFeedbackPill(
+                                    feedback = feedback,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
+                                        .padding(horizontal = horizontalSafePadding)
+                                        .padding(top = 40.dp),
+                                )
+                            }
+                        }
+                    }
+                } else if (showGestureFeedback) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        renderedGestureFeedback?.let { feedback ->
+                            GestureFeedbackPill(
+                                feedback = feedback,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
+                                    .padding(horizontal = horizontalSafePadding)
+                                    .padding(top = 40.dp),
+                            )
+                        }
                     }
                 }
             }
 
             // Skip intro/recap/outro button
-            if (!playerControlsLocked) {
-                SkipIntroButton(
-                    interval = activeSkipInterval,
-                    dismissed = skipIntervalDismissed,
-                    controlsVisible = controlsVisible,
-                    onSkip = {
-                        val interval = activeSkipInterval ?: return@SkipIntroButton
-                        playerController?.seekTo((interval.endTime * 1000).toLong())
-                        skipIntervalDismissed = true
-                    },
-                    onDismiss = { skipIntervalDismissed = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = sliderEdgePadding, bottom = overlayBottomPadding),
-                )
-            }
+            if (!usesNativePlayerChrome) SkipIntroButton(
+                interval = activeSkipInterval,
+                dismissed = skipIntervalDismissed,
+                controlsVisible = controlsVisible,
+                onSkip = {
+                    val interval = activeSkipInterval ?: return@SkipIntroButton
+                    playerController?.seekTo((interval.endTime * 1000).toLong())
+                    skipIntervalDismissed = true
+                },
+                onDismiss = { skipIntervalDismissed = true },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = sliderEdgePadding, bottom = overlayBottomPadding),
+            )
 
             // Next episode card
-            if (isSeries && !playerControlsLocked) {
+            if (!usesNativePlayerChrome && isSeries) {
                 NextEpisodeCard(
                     nextEpisode = nextEpisodeInfo,
                     visible = showNextEpisodeCard,
@@ -1708,14 +2126,14 @@ fun PlayerScreen(
                 )
             }
 
-            if (errorMessage != null) {
+            if (!usesNativePlayerChrome && errorMessage != null) {
                 ErrorModal(
                     message = errorMessage.orEmpty(),
                     onDismiss = onBackWithProgress,
                 )
             }
 
-            AudioTrackModal(
+            if (!usesNativePlayerChrome) AudioTrackModal(
                 visible = showAudioModal,
                 audioTracks = audioTracks,
                 selectedIndex = selectedAudioIndex,
@@ -1730,7 +2148,7 @@ fun PlayerScreen(
                 onDismiss = { showAudioModal = false },
             )
 
-            SubtitleModal(
+            if (!usesNativePlayerChrome) SubtitleModal(
                 visible = showSubtitleModal,
                 activeTab = activeSubtitleTab,
                 subtitleTracks = subtitleTracks,
@@ -1757,13 +2175,17 @@ fun PlayerScreen(
                     useCustomSubtitles = true
                     playerController?.setSubtitleUri(addon.url)
                 },
-                onFetchAddonSubtitles = ::fetchAddonSubtitlesForActiveItem,
+                onFetchAddonSubtitles = {
+                    if (contentType != null && activeVideoId != null) {
+                        SubtitleRepository.fetchAddonSubtitles(contentType, activeVideoId!!)
+                    }
+                },
                 onStyleChanged = PlayerSettingsRepository::setSubtitleStyle,
                 onDismiss = { showSubtitleModal = false },
             )
 
             // Sources Panel
-            PlayerSourcesPanel(
+            if (!usesNativePlayerChrome) PlayerSourcesPanel(
                 visible = showSourcesPanel,
                 streamsUiState = sourceStreamsState,
                 currentStreamUrl = activeSourceUrl,
@@ -1788,7 +2210,7 @@ fun PlayerScreen(
             )
 
             // Episodes Panel
-            if (isSeries) {
+            if (!usesNativePlayerChrome && isSeries) {
                 PlayerEpisodesPanel(
                     visible = showEpisodesPanel,
                     episodes = allEpisodes,
@@ -1852,6 +2274,35 @@ fun PlayerScreen(
         }
     }
 }
+
+private fun buildDesktopPlaybackKey(
+    parentMetaId: String,
+    videoId: String?,
+    seasonNumber: Int?,
+    episodeNumber: Int?,
+    sourceUrl: String,
+    sourceAudioUrl: String?,
+    headers: Map<String, String>,
+    sessionNonce: Int,
+): String {
+    val base = listOf(
+        parentMetaId,
+        videoId.orEmpty(),
+        seasonNumber?.toString().orEmpty(),
+        episodeNumber?.toString().orEmpty(),
+        sourceUrl,
+        sourceAudioUrl.orEmpty(),
+        headers.entries.sortedBy { it.key }.joinToString("&") { (k, v) -> "$k=$v" },
+        sessionNonce.toString(),
+    ).joinToString("|")
+    return "pbk-${base.hashCode().toUInt().toString(16)}"
+}
+
+private fun String.safeMediaHash(): String =
+    "len=$length h=${hashCode().toUInt().toString(16)}"
+
+private fun PlayerEngineController.identityId(): String =
+    "c-${hashCode().toUInt().toString(16)}"
 
 private fun <T> findPreferredTrackIndex(
     tracks: List<T>,

@@ -37,15 +37,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.nuvio.app.core.ui.localizedContinueWatchingSubtitle
 import com.nuvio.app.core.ui.NuvioProgressBar
 import com.nuvio.app.core.ui.NuvioShelfSection
 import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
 import com.nuvio.app.features.watchprogress.ContinueWatchingSectionStyle
 import kotlin.math.roundToInt
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 private fun continueWatchingProgressPercent(progressFraction: Float): Int =
     (progressFraction * 100f).roundToInt().coerceIn(1, 99)
@@ -98,7 +95,7 @@ private fun HomeContinueWatchingSectionContent(
     onItemLongPress: ((ContinueWatchingItem) -> Unit)?,
 ) {
     NuvioShelfSection(
-        title = stringResource(Res.string.compose_settings_page_continue_watching),
+        title = "Continue Watching",
         entries = items,
         modifier = modifier,
         headerHorizontalPadding = sectionPadding,
@@ -308,7 +305,11 @@ private fun ContinueWatchingWideCard(
         ) {
             val isEpisodeCard = item.seasonNumber != null && item.episodeNumber != null
             val hasEpisodeTitle = !item.episodeTitle.isNullOrBlank()
-            val wideMetaLine = localizedContinueWatchingSubtitle(item)
+            val wideMetaLine = when {
+                item.progressFraction <= 0f && isEpisodeCard -> "Up Next • S${item.seasonNumber}E${item.episodeNumber}"
+                isEpisodeCard -> "S${item.seasonNumber}E${item.episodeNumber}"
+                else -> item.subtitle
+            }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -363,10 +364,7 @@ private fun ContinueWatchingWideCard(
                         trackColor = Color.White.copy(alpha = 0.10f),
                     )
                     Text(
-                        text = stringResource(
-                            Res.string.home_continue_watching_watched,
-                            "${continueWatchingProgressPercent(item.progressFraction)}%",
-                        ),
+                        text = "${continueWatchingProgressPercent(item.progressFraction)}% watched",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontSize = layout.progressLabelSize,
                             fontWeight = FontWeight.Medium,
@@ -468,11 +466,7 @@ private fun ContinueWatchingPosterCard(
             }
             if (item.seasonNumber != null && item.episodeNumber != null) {
                 Text(
-                    text = stringResource(
-                        Res.string.streams_episode_badge,
-                        item.seasonNumber,
-                        item.episodeNumber,
-                    ),
+                    text = "S${item.seasonNumber} E${item.episodeNumber}",
                     modifier = Modifier.padding(start = 6.dp),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = layout.posterMetaSize,
@@ -525,7 +519,7 @@ private fun UpNextBadge(
             ),
     ) {
         Text(
-            text = stringResource(Res.string.home_continue_watching_up_next),
+            text = "Up next",
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = textSize,
                 fontWeight = FontWeight.Bold,

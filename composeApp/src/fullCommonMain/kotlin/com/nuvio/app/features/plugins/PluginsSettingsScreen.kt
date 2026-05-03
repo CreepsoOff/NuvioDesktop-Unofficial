@@ -38,7 +38,6 @@ import com.nuvio.app.core.ui.NuvioInputField
 import com.nuvio.app.core.ui.NuvioPrimaryButton
 import com.nuvio.app.core.ui.NuvioSectionLabel
 import com.nuvio.app.core.ui.NuvioSurfaceCard
-import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import kotlinx.coroutines.launch
 
 @Composable
@@ -50,10 +49,6 @@ fun PluginsSettingsPageContent(
     }
 
     val uiState by PluginRepository.uiState.collectAsStateWithLifecycle()
-    val tmdbSettings by remember {
-        TmdbSettingsRepository.ensureLoaded()
-        TmdbSettingsRepository.uiState
-    }.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
 
     var repositoryUrl by rememberSaveable { mutableStateOf("") }
@@ -66,7 +61,6 @@ fun PluginsSettingsPageContent(
     val sortedRepos = remember(uiState.repositories) {
         uiState.repositories.sortedBy { it.name.lowercase() }
     }
-    val hasTmdbApiKey = tmdbSettings.hasApiKey
     val repositoryNameByUrl = remember(sortedRepos) {
         sortedRepos.associate { it.manifestUrl to it.name }
     }
@@ -93,17 +87,6 @@ fun PluginsSettingsPageContent(
                 NuvioInfoBadge(text = "${sortedScrapers.size} providers")
                 NuvioInfoBadge(
                     text = if (uiState.pluginsEnabled) "Plugins enabled" else "Plugins disabled",
-                )
-                NuvioInfoBadge(
-                    text = if (hasTmdbApiKey) "TMDB API key set" else "TMDB API key missing",
-                )
-            }
-            if (!hasTmdbApiKey) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Plugin providers require a TMDB API key. Set it on the TMDB screen or plugin providers will not work correctly.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -372,7 +355,7 @@ fun PluginsSettingsPageContent(
                     Spacer(modifier = Modifier.height(12.dp))
                     NuvioPrimaryButton(
                         text = if (isTestingThisScraper) "Testing..." else "Test Provider",
-                        enabled = hasTmdbApiKey && !isTestingThisScraper,
+                        enabled = !isTestingThisScraper,
                         onClick = {
                             testingScraperId = scraper.id
                             coroutineScope.launch {

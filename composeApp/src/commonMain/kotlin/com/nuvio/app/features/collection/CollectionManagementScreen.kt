@@ -55,8 +55,6 @@ import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.NuvioSectionLabel
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.NuvioSurfaceCard
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -77,7 +75,7 @@ fun CollectionManagementScreen(
     NuvioScreen {
         stickyHeader {
             NuvioScreenHeader(
-                title = stringResource(Res.string.collections_header),
+                title = "Collections",
                 onBack = onBack,
             ) {
                 IconButton(onClick = {
@@ -86,14 +84,14 @@ fun CollectionManagementScreen(
                 }) {
                     Icon(
                         imageVector = Icons.Rounded.ContentCopy,
-                        contentDescription = stringResource(Res.string.collections_copy_json),
+                        contentDescription = "Copy JSON",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 IconButton(onClick = { showImportDialog = true }) {
                     Icon(
                         imageVector = Icons.Rounded.ContentPaste,
-                        contentDescription = stringResource(Res.string.collections_import),
+                        contentDescription = "Import",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -102,11 +100,8 @@ fun CollectionManagementScreen(
         item {
             NuvioSurfaceCard {
                 Text(
-                    text = stringResource(
-                        Res.string.collections_count_summary,
-                        collections.size,
-                        collections.sumOf { it.folders.size },
-                    ),
+                    text = "${collections.size} collection${if (collections.size != 1) "s" else ""}, " +
+                        "${collections.sumOf { it.folders.size }} folder${if (collections.sumOf { it.folders.size } != 1) "s" else ""}",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -115,13 +110,13 @@ fun CollectionManagementScreen(
 
         item {
             NuvioPrimaryButton(
-                text = stringResource(Res.string.collections_new),
+                text = "New Collection",
                 onClick = { onNavigateToEditor(null) },
             )
         }
 
         if (collections.isNotEmpty()) {
-            item { NuvioSectionLabel(text = stringResource(Res.string.collections_your_collections)) }
+            item { NuvioSectionLabel(text = "YOUR COLLECTIONS") }
         }
 
         if (collections.isNotEmpty()) {
@@ -147,13 +142,13 @@ fun CollectionManagementScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = stringResource(Res.string.collections_empty_title),
+                        text = "No collections yet",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = stringResource(Res.string.collections_empty_subtitle),
+                        text = "Create one to organize your catalogs.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -192,11 +187,11 @@ fun CollectionManagementScreen(
     val deleteId = showDeleteConfirm
     val deleteCollection = deleteId?.let { id -> collections.find { it.id == id } }
     NuvioStatusModal(
-        title = stringResource(Res.string.collections_delete_title),
-        message = stringResource(Res.string.collections_delete_message, deleteCollection?.title.orEmpty()),
+        title = "Delete Collection",
+        message = "Delete \"${deleteCollection?.title ?: ""}\"? This cannot be undone.",
         isVisible = deleteId != null,
-        confirmText = stringResource(Res.string.action_delete),
-        dismissText = stringResource(Res.string.action_cancel),
+        confirmText = "Delete",
+        dismissText = "Cancel",
         onConfirm = {
             if (deleteId != null) {
                 CollectionRepository.removeCollection(deleteId)
@@ -266,13 +261,6 @@ private fun CollectionListItem(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                val summary = buildString {
-                    append(stringResource(Res.string.collections_folder_count, collection.folders.size))
-                    if (collection.pinToTop) {
-                        append(" · ")
-                        append(stringResource(Res.string.collections_pinned))
-                    }
-                }
                 Text(
                     text = collection.title,
                     style = MaterialTheme.typography.bodyLarge,
@@ -283,7 +271,8 @@ private fun CollectionListItem(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = summary,
+                    text = "${collection.folders.size} folder${if (collection.folders.size != 1) "s" else ""}" +
+                        if (collection.pinToTop) " · Pinned" else "",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -309,7 +298,7 @@ private fun CollectionListItem(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Menu,
-                    contentDescription = stringResource(Res.string.action_reorder),
+                    contentDescription = "Reorder",
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -321,7 +310,7 @@ private fun CollectionListItem(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Edit,
-                    contentDescription = stringResource(Res.string.action_edit),
+                    contentDescription = "Edit",
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -332,7 +321,7 @@ private fun CollectionListItem(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Delete,
-                    contentDescription = stringResource(Res.string.action_delete),
+                    contentDescription = "Delete",
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.error,
                 )
@@ -360,13 +349,13 @@ private fun ImportDialog(
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = stringResource(Res.string.collections_import_header),
+                    text = "Import Collections",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = stringResource(Res.string.collections_import_paste_description),
+                    text = "Paste your collections JSON below.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -377,12 +366,7 @@ private fun ImportDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(160.dp),
-                    placeholder = {
-                        Text(
-                            stringResource(Res.string.collections_import_json_placeholder),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    },
+                    placeholder = { Text("JSON", style = MaterialTheme.typography.bodyLarge) },
                     isError = importError != null,
                     supportingText = importError?.let {
                         { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -415,7 +399,7 @@ private fun ImportDialog(
                             contentColor = MaterialTheme.colorScheme.onSurface,
                         ),
                     ) {
-                        Text(stringResource(Res.string.action_cancel))
+                        Text("Cancel")
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     androidx.compose.material3.Button(
@@ -423,7 +407,7 @@ private fun ImportDialog(
                         enabled = importText.isNotBlank(),
                         shape = RoundedCornerShape(16.dp),
                     ) {
-                        Text(stringResource(Res.string.action_import))
+                        Text("Import")
                     }
                 }
             }

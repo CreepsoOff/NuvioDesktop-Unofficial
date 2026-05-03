@@ -37,13 +37,6 @@ import coil3.compose.AsyncImage
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.features.home.MetaPreview
 import kotlinx.coroutines.launch
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.episodes_cd_watched
-import nuvio.composeapp.generated.resources.hero_add_to_library
-import nuvio.composeapp.generated.resources.hero_mark_unwatched
-import nuvio.composeapp.generated.resources.hero_mark_watched
-import nuvio.composeapp.generated.resources.hero_remove_from_library
-import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,17 +66,13 @@ fun NuvioPosterActionSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = nuvioSafeBottomPadding(16.dp)),
+                .padding(bottom = 16.dp + nuvioPlatformExtraBottomPadding),
         ) {
             PosterSheetHeader(item = item)
             NuvioBottomSheetDivider()
             NuvioBottomSheetActionRow(
                 icon = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                title = if (isSaved) {
-                    stringResource(Res.string.hero_remove_from_library)
-                } else {
-                    stringResource(Res.string.hero_add_to_library)
-                },
+                title = if (isSaved) "Remove from Library" else "Add to Library",
                 onClick = {
                     onToggleLibrary()
                     coroutineScope.launch {
@@ -97,11 +86,7 @@ fun NuvioPosterActionSheet(
             NuvioBottomSheetDivider()
             NuvioBottomSheetActionRow(
                 icon = if (isWatched) Icons.Default.CheckCircle else Icons.Default.CheckCircleOutline,
-                title = if (isWatched) {
-                    stringResource(Res.string.hero_mark_unwatched)
-                } else {
-                    stringResource(Res.string.hero_mark_watched)
-                },
+                title = if (isWatched) "Mark as Unwatched" else "Mark as Watched",
                 onClick = {
                     onToggleWatched()
                     coroutineScope.launch {
@@ -129,7 +114,7 @@ fun NuvioWatchedBadge(
     ) {
         Icon(
             imageVector = Icons.Default.Check,
-            contentDescription = stringResource(Res.string.episodes_cd_watched),
+            contentDescription = "Watched",
             tint = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.size(12.dp),
         )
@@ -215,3 +200,4 @@ private fun PosterSheetHeader(
         }
     }
 }
+

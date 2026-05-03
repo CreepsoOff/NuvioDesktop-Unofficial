@@ -30,12 +30,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
 import kotlinx.coroutines.launch
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.cw_action_go_to_details
-import nuvio.composeapp.generated.resources.cw_action_remove
-import nuvio.composeapp.generated.resources.cw_action_start_from_beginning
-import nuvio.composeapp.generated.resources.play_manually
-import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,20 +64,20 @@ fun NuvioContinueWatchingActionSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = nuvioSafeBottomPadding(16.dp)),
+                .padding(bottom = 16.dp + nuvioPlatformExtraBottomPadding),
         ) {
             ContinueWatchingSheetHeader(item = item)
             NuvioBottomSheetDivider()
             NuvioBottomSheetActionRow(
                 icon = Icons.Default.Info,
-                title = stringResource(Res.string.cw_action_go_to_details),
+                title = "Go to details",
                 onClick = { dismissAfter(onOpenDetails) },
             )
             if (showManualPlayOption && onPlayManually != null) {
                 NuvioBottomSheetDivider()
                 NuvioBottomSheetActionRow(
                     icon = Icons.Default.PlayArrow,
-                    title = stringResource(Res.string.play_manually),
+                    title = "Play manually",
                     onClick = { dismissAfter(onPlayManually) },
                 )
             }
@@ -91,14 +85,14 @@ fun NuvioContinueWatchingActionSheet(
                 NuvioBottomSheetDivider()
                 NuvioBottomSheetActionRow(
                     icon = Icons.Default.Replay,
-                    title = stringResource(Res.string.cw_action_start_from_beginning),
+                    title = "Start from beginning",
                     onClick = { dismissAfter(onStartFromBeginning) },
                 )
             }
             NuvioBottomSheetDivider()
             NuvioBottomSheetActionRow(
                 icon = Icons.Default.DeleteOutline,
-                title = stringResource(Res.string.cw_action_remove),
+                title = "Remove",
                 onClick = { dismissAfter(onRemove) },
             )
         }
@@ -158,7 +152,7 @@ private fun ContinueWatchingSheetHeader(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = localizedContinueWatchingSubtitle(item),
+                text = item.subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,

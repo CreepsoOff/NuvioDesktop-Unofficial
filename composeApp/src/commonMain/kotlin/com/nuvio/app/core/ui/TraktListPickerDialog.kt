@@ -28,12 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.features.trakt.TraktListTab
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.action_cancel
-import nuvio.composeapp.generated.resources.action_save
-import nuvio.composeapp.generated.resources.compose_trakt_list_picker_loading
-import nuvio.composeapp.generated.resources.compose_trakt_list_picker_subtitle
-import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +62,7 @@ fun TraktListPickerDialog(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = stringResource(Res.string.compose_trakt_list_picker_subtitle),
+                    text = "Choose where to save this title on Trakt",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -97,7 +91,7 @@ fun TraktListPickerDialog(
                                 modifier = Modifier.size(24.dp),
                             )
                             Text(
-                                text = stringResource(Res.string.compose_trakt_list_picker_loading),
+                                text = "Loading your Trakt lists…",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -157,7 +151,7 @@ fun TraktListPickerDialog(
                             contentColor = MaterialTheme.colorScheme.onSurface,
                         ),
                     ) {
-                        Text(stringResource(Res.string.action_cancel))
+                        Text("Cancel")
                     }
                     Button(
                         onClick = onSave,
@@ -170,7 +164,7 @@ fun TraktListPickerDialog(
                                 modifier = Modifier.size(16.dp),
                             )
                         } else {
-                            Text(stringResource(Res.string.action_save))
+                            Text("Save")
                         }
                     }
                 }

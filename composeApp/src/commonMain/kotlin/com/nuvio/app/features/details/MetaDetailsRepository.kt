@@ -3,12 +3,10 @@ package com.nuvio.app.features.details
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.AddonManifest
 import com.nuvio.app.features.addons.AddonRepository
-import com.nuvio.app.features.addons.buildAddonResourceUrl
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.mdblist.MdbListMetadataService
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.tmdb.TmdbMetadataService
-import com.nuvio.app.features.tmdb.TmdbService
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -20,8 +18,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.getString
 
 object MetaDetailsRepository {
     private data class CachedMetaEntry(
@@ -102,25 +98,20 @@ object MetaDetailsRepository {
         _uiState.value = MetaDetailsUiState(isLoading = true)
 
         scope.launch {
-            val metaLookupId = resolveMetaLookupId(itemId = id, itemType = type)
-            val manifests = findMetaManifests(type = type, id = metaLookupId)
-
-            if (manifests.isEmpty()) {
-                val tmdbMeta = tryFetchTmdbFallbackMeta(type = type, id = id)
-                if (tmdbMeta != null) {
-                    publishLoadedMeta(
-                        requestKey = requestKey,
-                        meta = tmdbMeta,
-                        fallbackItemId = id,
-                        mdbListSettings = mdbListSettings,
-                        metaScreenSettingsFingerprint = metaScreenSettingsFingerprint,
-                    )
-                    return@launch
+            val manifests = AddonRepository.uiState.value.addons
+                .mapNotNull { it.manifest }
+                .filter { manifest ->
+                    manifest.resources.any { resource ->
+                        resource.name == "meta" &&
+                            resource.types.contains(type) &&
+                            (resource.idPrefixes.isEmpty() || resource.idPrefixes.any { id.startsWith(it) })
+                    }
                 }
 
+            if (manifests.isEmpty()) {
                 log.w { "No addon provides meta for type=$type id=$id" }
                 _uiState.value = MetaDetailsUiState(
-                    errorMessage = getString(Res.string.details_no_addon_meta),
+                    errorMessage = "No addon provides meta for this content.",
                 )
                 activeRequestKey = null
                 return@launch
@@ -128,34 +119,44 @@ object MetaDetailsRepository {
 
             for (manifest in manifests) {
                 val result = withContext(Dispatchers.Default) {
-                    tryFetchMeta(manifest, type, metaLookupId, includeMdbList = false)
+                    tryFetchMeta(manifest, type, id, includeMdbList = false)
                 }
                 if (result != null) {
-                    publishLoadedMeta(
-                        requestKey = requestKey,
+                    var cachedEntry = CachedMetaEntry(baseMeta = result)
+                    cachedMetaByRequestKey[requestKey] = cachedEntry
+
+                    if (!shouldFetchMdbListOnMetaScreen(result, id, mdbListSettings)) {
+                        _uiState.value = MetaDetailsUiState(meta = result)
+                        activeRequestKey = requestKey
+                        return@launch
+                    }
+
+                    _uiState.value = MetaDetailsUiState(
+                        isLoading = true,
                         meta = result,
-                        fallbackItemId = metaLookupId,
-                        mdbListSettings = mdbListSettings,
+                    )
+                    val enrichedMeta = withContext(Dispatchers.Default) {
+                        enrichForMetaScreen(
+                            requestKey = requestKey,
+                            meta = result,
+                            fallbackItemId = id,
+                            settings = mdbListSettings,
+                            settingsFingerprint = metaScreenSettingsFingerprint,
+                        )
+                    }
+                    cachedEntry = cachedEntry.copy(
+                        metaScreenMeta = enrichedMeta,
                         metaScreenSettingsFingerprint = metaScreenSettingsFingerprint,
                     )
+                    cachedMetaByRequestKey[requestKey] = cachedEntry
+                    _uiState.value = MetaDetailsUiState(meta = enrichedMeta)
+                    activeRequestKey = requestKey
                     return@launch
                 }
             }
 
-            val tmdbMeta = tryFetchTmdbFallbackMeta(type = type, id = id)
-            if (tmdbMeta != null) {
-                publishLoadedMeta(
-                    requestKey = requestKey,
-                    meta = tmdbMeta,
-                    fallbackItemId = id,
-                    mdbListSettings = mdbListSettings,
-                    metaScreenSettingsFingerprint = metaScreenSettingsFingerprint,
-                )
-                return@launch
-            }
-
             _uiState.value = MetaDetailsUiState(
-                errorMessage = getString(Res.string.details_load_failed_all_addons),
+                errorMessage = "Could not load details from any addon.",
             )
             activeRequestKey = null
         }
@@ -183,12 +184,19 @@ object MetaDetailsRepository {
         val requestKey = "$type:$id"
         cachedMetaByRequestKey[requestKey]?.let { return it.baseMeta }
 
-        val metaLookupId = resolveMetaLookupId(itemId = id, itemType = type)
-        val manifests = findMetaManifests(type = type, id = metaLookupId)
+        val manifests = AddonRepository.uiState.value.addons
+            .mapNotNull { it.manifest }
+            .filter { manifest ->
+                manifest.resources.any { resource ->
+                    resource.name == "meta" &&
+                        resource.types.contains(type) &&
+                        (resource.idPrefixes.isEmpty() || resource.idPrefixes.any { id.startsWith(it) })
+                }
+            }
 
         for (manifest in manifests) {
             val result = withTimeoutOrNull(FETCH_TIMEOUT_MS) {
-                tryFetchMeta(manifest, type, metaLookupId, includeMdbList = false)
+                tryFetchMeta(manifest, type, id, includeMdbList = false)
             }
             if (result != null) {
                 cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = result)
@@ -196,9 +204,7 @@ object MetaDetailsRepository {
             }
         }
 
-        return tryFetchTmdbFallbackMeta(type = type, id = id)?.also { result ->
-            cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = result)
-        }
+        return null
     }
 
     private const val FETCH_TIMEOUT_MS = 5_000L
@@ -211,12 +217,10 @@ object MetaDetailsRepository {
         id: String,
         includeMdbList: Boolean,
     ): MetaDetails? {
-        val url = buildAddonResourceUrl(
-            manifestUrl = manifest.transportUrl,
-            resource = "meta",
-            type = type,
-            id = id,
-        )
+        val baseUrl = manifest.transportUrl
+            .substringBefore("?")
+            .removeSuffix("/manifest.json")
+        val url = "$baseUrl/meta/$type/$id.json"
 
         return try {
             TmdbSettingsRepository.ensureLoaded()
@@ -254,78 +258,6 @@ object MetaDetailsRepository {
             log.e(e) { "Failed to fetch/parse meta from $url (manifest=${manifest.transportUrl})" }
             null
         }
-    }
-
-    private fun findMetaManifests(type: String, id: String): List<AddonManifest> =
-        AddonRepository.uiState.value.addons
-            .mapNotNull { it.manifest }
-            .filter { manifest ->
-                manifest.resources.any { resource ->
-                    resource.name == "meta" &&
-                        resource.types.contains(type) &&
-                        (resource.idPrefixes.isEmpty() || resource.idPrefixes.any { id.startsWith(it) })
-                }
-            }
-
-    private suspend fun resolveMetaLookupId(itemId: String, itemType: String): String {
-        val tmdbId = itemId
-            .takeIf { it.startsWith("tmdb:", ignoreCase = true) }
-            ?.substringAfter(':')
-            ?.substringBefore(':')
-            ?.toIntOrNull()
-            ?: return itemId
-
-        return withTimeoutOrNull(FETCH_TIMEOUT_MS) {
-            TmdbService.tmdbToImdb(tmdbId = tmdbId, mediaType = itemType)
-        }
-            ?.takeIf { it.isNotBlank() }
-            ?: itemId
-    }
-
-    private suspend fun tryFetchTmdbFallbackMeta(type: String, id: String): MetaDetails? =
-        withTimeoutOrNull(TMDB_ENRICH_TIMEOUT_MS) {
-            TmdbMetadataService.fetchStandaloneMeta(
-                type = type,
-                id = id,
-                settings = TmdbSettingsRepository.snapshot(),
-            )
-        }
-
-    private suspend fun publishLoadedMeta(
-        requestKey: String,
-        meta: MetaDetails,
-        fallbackItemId: String,
-        mdbListSettings: com.nuvio.app.features.mdblist.MdbListSettings,
-        metaScreenSettingsFingerprint: String,
-    ) {
-        val cachedEntry = CachedMetaEntry(baseMeta = meta)
-        cachedMetaByRequestKey[requestKey] = cachedEntry
-
-        if (!shouldFetchMdbListOnMetaScreen(meta, fallbackItemId, mdbListSettings)) {
-            _uiState.value = MetaDetailsUiState(meta = meta)
-            activeRequestKey = requestKey
-            return
-        }
-
-        _uiState.value = MetaDetailsUiState(
-            isLoading = true,
-            meta = meta,
-        )
-        val enrichedMeta = withContext(Dispatchers.Default) {
-            enrichForMetaScreen(
-                requestKey = requestKey,
-                meta = meta,
-                fallbackItemId = fallbackItemId,
-                settings = mdbListSettings,
-                settingsFingerprint = metaScreenSettingsFingerprint,
-            )
-        }
-        cachedMetaByRequestKey[requestKey] = cachedEntry.copy(
-            metaScreenMeta = enrichedMeta,
-            metaScreenSettingsFingerprint = metaScreenSettingsFingerprint,
-        )
-        _uiState.value = MetaDetailsUiState(meta = enrichedMeta)
-        activeRequestKey = requestKey
     }
 
     private suspend fun enrichForMetaScreen(

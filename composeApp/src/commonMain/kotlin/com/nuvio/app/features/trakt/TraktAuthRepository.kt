@@ -19,10 +19,6 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.random.Random
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.getString
-import org.jetbrains.compose.resources.StringResource
-import kotlinx.coroutines.runBlocking
 
 object TraktAuthRepository {
     private const val BASE_URL = "https://api.trakt.tv"
@@ -71,7 +67,7 @@ object TraktAuthRepository {
     fun onConnectRequested(): String? {
         ensureLoaded()
         if (!hasRequiredCredentials()) {
-            publish(errorMessage = localizedString(Res.string.trakt_missing_credentials))
+            publish(errorMessage = "Missing Trakt credentials")
             return null
         }
 
@@ -82,7 +78,7 @@ object TraktAuthRepository {
         )
         persist()
         publish(
-            statusMessage = localizedString(Res.string.trakt_complete_sign_in_browser),
+            statusMessage = "Complete Trakt sign in in your browser",
             errorMessage = null,
         )
 
@@ -187,7 +183,7 @@ object TraktAuthRepository {
             persist()
             publish(
                 isLoading = false,
-                errorMessage = localizedString(Res.string.trakt_invalid_callback),
+                errorMessage = "Invalid Trakt callback",
             )
             return
         }
@@ -195,7 +191,7 @@ object TraktAuthRepository {
         val errorCode = parsedUrl.parameters["error"]
         if (!errorCode.isNullOrBlank()) {
             val errorDescription = parsedUrl.parameters["error_description"]
-                ?: localizedString(Res.string.trakt_authorization_denied)
+                ?: "Authorization denied"
             clearPendingAuthorization()
             persist()
             publish(
@@ -211,7 +207,7 @@ object TraktAuthRepository {
             persist()
             publish(
                 isLoading = false,
-                errorMessage = localizedString(Res.string.trakt_missing_auth_code),
+                errorMessage = "Trakt did not return an authorization code",
             )
             return
         }
@@ -223,7 +219,7 @@ object TraktAuthRepository {
             persist()
             publish(
                 isLoading = false,
-                errorMessage = localizedString(Res.string.trakt_invalid_callback_state),
+                errorMessage = "Invalid Trakt callback state",
             )
             return
         }
@@ -255,7 +251,7 @@ object TraktAuthRepository {
         if (response == null) {
             clearPendingAuthorization()
             persist()
-            publish(isLoading = false, errorMessage = localizedString(Res.string.trakt_sign_in_complete_failed))
+            publish(isLoading = false, errorMessage = "Failed to complete Trakt sign in")
             return
         }
 
@@ -266,7 +262,7 @@ object TraktAuthRepository {
         if (parsed == null) {
             clearPendingAuthorization()
             persist()
-            publish(isLoading = false, errorMessage = localizedString(Res.string.trakt_invalid_token_response))
+            publish(isLoading = false, errorMessage = "Invalid Trakt token response")
             return
         }
 
@@ -494,4 +490,3 @@ private data class TraktUserDto(
 private data class TraktUserIdsDto(
     val slug: String? = null,
 )
-    private fun localizedString(resource: StringResource): String = runBlocking { getString(resource) }

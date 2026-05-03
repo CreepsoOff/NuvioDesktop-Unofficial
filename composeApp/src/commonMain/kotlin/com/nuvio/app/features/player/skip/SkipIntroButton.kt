@@ -37,12 +37,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.player_skip
-import nuvio.composeapp.generated.resources.player_skip_intro
-import nuvio.composeapp.generated.resources.player_skip_outro
-import nuvio.composeapp.generated.resources.player_skip_recap
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SkipIntroButton(
@@ -118,7 +112,7 @@ fun SkipIntroButton(
                     modifier = Modifier.size(20.dp),
                 )
                 Text(
-                    text = skipLabel(lastType),
+                    text = getSkipLabel(lastType),
                     color = Color.White,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(start = 8.dp),
@@ -146,11 +140,11 @@ fun SkipIntroButton(
     }
 }
 
-@Composable
-private fun skipLabel(type: String?): String =
-    when (type?.lowercase()) {
-        "intro", "op", "mixed-op" -> stringResource(Res.string.player_skip_intro)
-        "outro", "ed", "mixed-ed", "credits" -> stringResource(Res.string.player_skip_outro)
-        "recap" -> stringResource(Res.string.player_skip_recap)
-        else -> stringResource(Res.string.player_skip)
+private fun getSkipLabel(type: String?): String {
+    return when (type?.lowercase()) {
+        "intro", "op", "mixed-op" -> "Skip Intro"
+        "outro", "ed", "mixed-ed", "credits" -> "Skip Outro"
+        "recap" -> "Skip Recap"
+        else -> "Skip"
     }
+}

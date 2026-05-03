@@ -44,7 +44,6 @@ import com.nuvio.app.core.ui.NuvioInputField
 import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
 import com.nuvio.app.core.ui.NuvioScreenHeader
-import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.HomeCatalogRowSection
@@ -56,22 +55,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.compose_nav_search
-import nuvio.composeapp.generated.resources.compose_search_clear
-import nuvio.composeapp.generated.resources.compose_search_discover_title
-import nuvio.composeapp.generated.resources.compose_search_empty_failed_message
-import nuvio.composeapp.generated.resources.compose_search_empty_failed_title
-import nuvio.composeapp.generated.resources.compose_search_empty_no_active_addons_message
-import nuvio.composeapp.generated.resources.compose_search_empty_no_active_addons_title
-import nuvio.composeapp.generated.resources.compose_search_empty_no_results_message
-import nuvio.composeapp.generated.resources.compose_search_empty_no_results_title
-import nuvio.composeapp.generated.resources.compose_search_empty_no_search_catalogs_message
-import nuvio.composeapp.generated.resources.compose_search_empty_no_search_catalogs_title
-import nuvio.composeapp.generated.resources.compose_search_placeholder
-import nuvio.composeapp.generated.resources.compose_search_recent_searches
-import nuvio.composeapp.generated.resources.compose_search_remove_recent_search
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SearchScreen(
@@ -95,9 +78,14 @@ fun SearchScreen(
     var lastRequestedQuery by rememberSaveable { mutableStateOf<String?>(null) }
     var observedOfflineState by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
-    val discoverInFocus by remember(query, listState) {
+    val headerTitle by remember(query, listState) {
         derivedStateOf {
-            query.isBlank() && listState.firstVisibleItemIndex > 0
+            if (query.isNotBlank()) {
+                "Search"
+            } else {
+                val discoverInFocus = listState.firstVisibleItemIndex > 0
+                if (discoverInFocus) "Discover" else "Search"
+            }
         }
     }
 
@@ -203,11 +191,6 @@ fun SearchScreen(
         val homeSectionPadding = remember(maxWidth) {
             homeSectionHorizontalPaddingForWidth(maxWidth.value)
         }
-        val headerTitle = when {
-            query.isNotBlank() -> stringResource(Res.string.compose_nav_search)
-            discoverInFocus -> stringResource(Res.string.compose_search_discover_title)
-            else -> stringResource(Res.string.compose_nav_search)
-        }
 
         NuvioScreen(
             horizontalPadding = 0.dp,
@@ -229,13 +212,13 @@ fun SearchScreen(
                     NuvioInputField(
                         value = query,
                         onValueChange = { query = it },
-                        placeholder = stringResource(Res.string.compose_search_placeholder),
+                        placeholder = "Search movies, shows...",
                         trailingContent = if (query.isNotBlank()) {
                             {
                                 IconButton(onClick = { query = "" }) {
                                     Icon(
                                         imageVector = Icons.Rounded.Close,
-                                        contentDescription = stringResource(Res.string.compose_search_clear),
+                                        contentDescription = "Clear search",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
@@ -304,10 +287,9 @@ fun SearchScreen(
 
                 else -> {
                     items(
-                        items = uiState.sections.withDuplicateSafeLazyKeys { section -> section.key },
-                        key = { section -> section.lazyKey },
-                    ) { keyedSection ->
-                        val section = keyedSection.value
+                        items = uiState.sections,
+                        key = { section -> section.key },
+                    ) { section ->
                         HomeCatalogRowSection(
                             section = section,
                             modifier = Modifier.padding(bottom = 12.dp),
@@ -325,10 +307,11 @@ fun SearchScreen(
 
 private fun discoverColumnCountForWidth(screenWidth: Dp): Int =
     when {
-        screenWidth >= 1400.dp -> 7
-        screenWidth >= 1200.dp -> 6
-        screenWidth >= 1000.dp -> 5
-        screenWidth >= 840.dp -> 4
+        screenWidth >= 1920.dp -> 8
+        screenWidth >= 1600.dp -> 7
+        screenWidth >= 1360.dp -> 6
+        screenWidth >= 1120.dp -> 5
+        screenWidth >= 900.dp -> 4
         else -> 3
     }
 
@@ -354,23 +337,23 @@ private fun SearchEmptyStateCard(
 
     when (reason) {
         SearchEmptyStateReason.NoActiveAddons -> {
-            title = stringResource(Res.string.compose_search_empty_no_active_addons_title)
-            message = stringResource(Res.string.compose_search_empty_no_active_addons_message)
+            title = "No active addons"
+            message = "Install and validate at least one addon before searching."
         }
 
         SearchEmptyStateReason.NoSearchCatalogs -> {
-            title = stringResource(Res.string.compose_search_empty_no_search_catalogs_title)
-            message = stringResource(Res.string.compose_search_empty_no_search_catalogs_message)
+            title = "No searchable catalogs"
+            message = "Your installed addons do not expose catalog search."
         }
 
         SearchEmptyStateReason.RequestFailed -> {
-            title = stringResource(Res.string.compose_search_empty_failed_title)
-            message = errorMessage ?: stringResource(Res.string.compose_search_empty_failed_message)
+            title = "Search failed"
+            message = errorMessage ?: "Installed addons failed to return valid search results."
         }
 
         SearchEmptyStateReason.NoResults, null -> {
-            title = stringResource(Res.string.compose_search_empty_no_results_title)
-            message = stringResource(Res.string.compose_search_empty_no_results_message)
+            title = "No results found"
+            message = "Installed searchable catalogs did not return any matches for this query."
         }
     }
 
@@ -395,7 +378,7 @@ private fun SearchRecentSection(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text = stringResource(Res.string.compose_search_recent_searches),
+            text = "Recent Searches",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onBackground,
         )
@@ -457,7 +440,7 @@ private fun SearchRecentRow(
         IconButton(onClick = onRemovePress) {
             Icon(
                 imageVector = Icons.Rounded.Close,
-                contentDescription = stringResource(Res.string.compose_search_remove_recent_search),
+                contentDescription = "Remove recent search",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

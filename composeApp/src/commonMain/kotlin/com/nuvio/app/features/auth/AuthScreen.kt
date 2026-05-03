@@ -62,22 +62,7 @@ import com.nuvio.app.core.ui.NuvioSurfaceCard
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.app_logo_wordmark
-import nuvio.composeapp.generated.resources.compose_auth_already_have_account
-import nuvio.composeapp.generated.resources.compose_auth_continue_without_account
-import nuvio.composeapp.generated.resources.compose_auth_create_account
-import nuvio.composeapp.generated.resources.compose_auth_dont_have_account
-import nuvio.composeapp.generated.resources.compose_auth_email
-import nuvio.composeapp.generated.resources.compose_auth_or_separator
-import nuvio.composeapp.generated.resources.compose_auth_password
-import nuvio.composeapp.generated.resources.compose_auth_sign_in
-import nuvio.composeapp.generated.resources.compose_auth_sign_in_subtitle
-import nuvio.composeapp.generated.resources.compose_auth_sign_up
-import nuvio.composeapp.generated.resources.compose_auth_sign_up_subtitle
-import nuvio.composeapp.generated.resources.compose_auth_store_locally
-import nuvio.composeapp.generated.resources.compose_auth_tagline
-import nuvio.composeapp.generated.resources.compose_auth_welcome_back
 import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun AuthScreen(
@@ -112,7 +97,7 @@ fun AuthScreen(
         ) {
             Image(
                 painter = painterResource(Res.drawable.app_logo_wordmark),
-                contentDescription = null,
+                contentDescription = "Nuvio",
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
                     .height(48.dp),
@@ -120,7 +105,7 @@ fun AuthScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = stringResource(Res.string.compose_auth_tagline),
+                text = "Stream everything, everywhere",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -134,8 +119,7 @@ fun AuthScreen(
                     label = "heading",
                 ) { signUp ->
                     Text(
-                        text = if (signUp) stringResource(Res.string.compose_auth_create_account)
-                        else stringResource(Res.string.compose_auth_welcome_back),
+                        text = if (signUp) "Create Account" else "Welcome Back",
                         style = MaterialTheme.typography.headlineLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -147,8 +131,8 @@ fun AuthScreen(
                     label = "subtitle",
                 ) { signUp ->
                     Text(
-                        text = if (signUp) stringResource(Res.string.compose_auth_sign_up_subtitle)
-                        else stringResource(Res.string.compose_auth_sign_in_subtitle),
+                        text = if (signUp) "Sign up to sync your data across devices"
+                        else "Sign in to access your library and progress",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -166,7 +150,7 @@ fun AuthScreen(
                     singleLine = true,
                     placeholder = {
                         Text(
-                            text = stringResource(Res.string.compose_auth_email),
+                            text = "Email",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },
@@ -199,7 +183,7 @@ fun AuthScreen(
                     singleLine = true,
                     placeholder = {
                         Text(
-                            text = stringResource(Res.string.compose_auth_password),
+                            text = "Password",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },
@@ -256,13 +240,7 @@ fun AuthScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 NuvioPrimaryButton(
-                    text = if (isLoading) {
-                        ""
-                    } else if (isSignUp) {
-                        stringResource(Res.string.compose_auth_create_account)
-                    } else {
-                        stringResource(Res.string.compose_auth_sign_in)
-                    },
+                    text = if (isLoading) "" else if (isSignUp) "Create Account" else "Sign In",
                     enabled = email.isNotBlank() && password.length >= 6 && !isLoading,
                     onClick = {
                         isLoading = true
@@ -301,8 +279,7 @@ fun AuthScreen(
                         label = "togglePrompt",
                     ) { signUp ->
                         Text(
-                            text = if (signUp) stringResource(Res.string.compose_auth_already_have_account)
-                            else stringResource(Res.string.compose_auth_dont_have_account),
+                            text = if (signUp) "Already have an account? " else "Don't have an account? ",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -313,8 +290,7 @@ fun AuthScreen(
                         label = "toggleAction",
                     ) { signUp ->
                         Text(
-                            text = if (signUp) stringResource(Res.string.compose_auth_sign_in)
-                            else stringResource(Res.string.compose_auth_sign_up),
+                            text = if (signUp) "Sign In" else "Sign Up",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
@@ -341,7 +317,7 @@ fun AuthScreen(
                         .background(MaterialTheme.colorScheme.outline),
                 )
                 Text(
-                    text = stringResource(Res.string.compose_auth_or_separator),
+                    text = "  or  ",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -370,7 +346,7 @@ fun AuthScreen(
                 ),
             ) {
                 Text(
-                    text = stringResource(Res.string.compose_auth_continue_without_account),
+                    text = "Continue Without Account",
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center,
                 )
@@ -378,7 +354,7 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = stringResource(Res.string.compose_auth_store_locally),
+                text = "Your data will only be stored locally",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

@@ -33,10 +33,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.home_view_all
-import nuvio.composeapp.generated.resources.poster_logo_content_description
-import org.jetbrains.compose.resources.stringResource
 
 enum class NuvioPosterShape {
     Poster,
@@ -82,10 +78,10 @@ fun <T> NuvioShelfSection(
         ) {
             if (key != null) {
                 items(
-                    items = entries.withDuplicateSafeLazyKeys(key),
-                    key = { entry -> entry.lazyKey },
-                ) { keyedEntry ->
-                    itemContent(keyedEntry.value)
+                    items = entries,
+                    key = key,
+                ) { entry ->
+                    itemContent(entry)
                 }
             } else {
                 items(entries) { entry ->
@@ -160,7 +156,7 @@ fun NuvioPosterCard(
                     if (!bottomLeftLogoUrl.isNullOrBlank()) {
                         AsyncImage(
                             model = bottomLeftLogoUrl,
-                            contentDescription = stringResource(Res.string.poster_logo_content_description, title),
+                            contentDescription = "$title logo",
                             modifier = Modifier
                                 .width(catalogLogoOverlaySize.width)
                                 .height(catalogLogoOverlaySize.height),
@@ -284,7 +280,7 @@ private fun NuvioViewAllPill(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = stringResource(Res.string.home_view_all),
+            text = "View All",
             style = textStyle,
             color = MaterialTheme.colorScheme.onSurface,
         )

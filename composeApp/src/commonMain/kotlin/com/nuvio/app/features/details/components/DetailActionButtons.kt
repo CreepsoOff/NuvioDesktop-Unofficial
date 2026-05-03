@@ -28,17 +28,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.appIconPainter
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.action_play
-import nuvio.composeapp.generated.resources.action_save
-import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DetailActionButtons(
     modifier: Modifier = Modifier,
-    playLabel: String = stringResource(Res.string.action_play),
-    saveLabel: String = stringResource(Res.string.action_save),
+    playLabel: String = "Play",
+    saveLabel: String = "Save",
     isSaved: Boolean = false,
     isTablet: Boolean = false,
     onPlayClick: () -> Unit = {},

@@ -15,6 +15,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -78,7 +80,7 @@ object CollectionSyncService {
 
             if (remoteCollections != null) {
                 isSyncingFromRemote = true
-                CollectionRepository.applyFromRemote(remoteCollections, blob.collectionsJson)
+                CollectionRepository.applyFromRemote(remoteCollections)
                 isSyncingFromRemote = false
                 log.i { "pullFromServer — applied ${remoteCollections.size} collections from remote" }
             } else {
@@ -123,7 +125,9 @@ object CollectionSyncService {
     @OptIn(FlowPreview::class)
     private fun observeLocalChangesAndPush() {
         observeJob = scope.launch {
-            CollectionRepository.localChangeEvents
+            CollectionRepository.collections
+                .drop(1)
+                .distinctUntilChanged()
                 .debounce(PUSH_DEBOUNCE_MS)
                 .collect {
                     if (isSyncingFromRemote) return@collect

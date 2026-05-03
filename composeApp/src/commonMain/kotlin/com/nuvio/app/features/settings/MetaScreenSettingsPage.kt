@@ -50,51 +50,8 @@ import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.NuvioActionLabel
 import com.nuvio.app.features.details.MetaEpisodeCardStyle
 import com.nuvio.app.features.details.MetaScreenSectionItem
-import com.nuvio.app.features.details.MetaScreenSectionKey
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.details.MetaScreenSettingsUiState
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.action_reorder
-import nuvio.composeapp.generated.resources.action_reset
-import nuvio.composeapp.generated.resources.settings_homescreen_hidden
-import nuvio.composeapp.generated.resources.settings_homescreen_visible
-import nuvio.composeapp.generated.resources.settings_meta_actions
-import nuvio.composeapp.generated.resources.settings_meta_actions_description
-import nuvio.composeapp.generated.resources.settings_meta_cast
-import nuvio.composeapp.generated.resources.settings_meta_cast_description
-import nuvio.composeapp.generated.resources.settings_meta_cinematic_background
-import nuvio.composeapp.generated.resources.settings_meta_cinematic_background_description
-import nuvio.composeapp.generated.resources.settings_meta_collection
-import nuvio.composeapp.generated.resources.settings_meta_collection_description
-import nuvio.composeapp.generated.resources.settings_meta_comments
-import nuvio.composeapp.generated.resources.settings_meta_comments_description
-import nuvio.composeapp.generated.resources.settings_meta_details
-import nuvio.composeapp.generated.resources.settings_meta_details_description
-import nuvio.composeapp.generated.resources.settings_meta_episode_cards
-import nuvio.composeapp.generated.resources.settings_meta_episode_cards_description
-import nuvio.composeapp.generated.resources.settings_meta_episode_style_horizontal
-import nuvio.composeapp.generated.resources.settings_meta_episode_style_horizontal_description
-import nuvio.composeapp.generated.resources.settings_meta_episode_style_list
-import nuvio.composeapp.generated.resources.settings_meta_episode_style_list_description
-import nuvio.composeapp.generated.resources.settings_meta_episodes
-import nuvio.composeapp.generated.resources.settings_meta_episodes_description
-import nuvio.composeapp.generated.resources.settings_meta_group_label
-import nuvio.composeapp.generated.resources.settings_meta_more_like_this
-import nuvio.composeapp.generated.resources.settings_meta_more_like_this_description
-import nuvio.composeapp.generated.resources.settings_meta_none
-import nuvio.composeapp.generated.resources.settings_meta_overview
-import nuvio.composeapp.generated.resources.settings_meta_overview_description
-import nuvio.composeapp.generated.resources.settings_meta_production
-import nuvio.composeapp.generated.resources.settings_meta_production_description
-import nuvio.composeapp.generated.resources.settings_meta_section_appearance
-import nuvio.composeapp.generated.resources.settings_meta_section_sections
-import nuvio.composeapp.generated.resources.settings_meta_tab_group_format
-import nuvio.composeapp.generated.resources.settings_meta_tab_layout
-import nuvio.composeapp.generated.resources.settings_meta_tab_layout_description
-import nuvio.composeapp.generated.resources.settings_meta_trailers
-import nuvio.composeapp.generated.resources.settings_meta_trailers_description
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -105,21 +62,21 @@ internal fun LazyListScope.metaScreenSettingsContent(
 ) {
     item {
         SettingsSection(
-            title = stringResource(Res.string.settings_meta_section_appearance),
+            title = "APPEARANCE",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_meta_cinematic_background),
-                    description = stringResource(Res.string.settings_meta_cinematic_background_description),
+                    title = "Cinematic Background",
+                    description = "Blurred backdrop behind content, similar to stream screen.",
                     checked = uiState.cinematicBackground,
                     isTablet = isTablet,
                     onCheckedChange = { MetaScreenSettingsRepository.setCinematicBackground(it) },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_meta_tab_layout),
-                    description = stringResource(Res.string.settings_meta_tab_layout_description),
+                    title = "Tab Layout",
+                    description = "Group sections into tabs like the TV app. Assign up to 3 sections per tab group.",
                     checked = uiState.tabLayout,
                     isTablet = isTablet,
                     onCheckedChange = { MetaScreenSettingsRepository.setTabLayout(it) },
@@ -135,11 +92,11 @@ internal fun LazyListScope.metaScreenSettingsContent(
     }
     item {
         SettingsSection(
-            title = stringResource(Res.string.settings_meta_section_sections),
+            title = "SECTIONS",
             isTablet = isTablet,
             actions = {
                 NuvioActionLabel(
-                    text = stringResource(Res.string.action_reset),
+                    text = "Reset",
                     onClick = MetaScreenSettingsRepository::resetToDefaults,
                 )
             },
@@ -240,7 +197,7 @@ private fun MetaSectionRow(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = stringResource(item.key.titleRes),
+                    text = item.title,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
@@ -248,7 +205,7 @@ private fun MetaSectionRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = stringResource(item.key.descriptionRes),
+                    text = item.description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -257,11 +214,7 @@ private fun MetaSectionRow(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = if (item.enabled) {
-                            stringResource(Res.string.settings_homescreen_visible)
-                        } else {
-                            stringResource(Res.string.settings_homescreen_hidden)
-                        },
+                        text = if (item.enabled) "Visible" else "Hidden",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -273,7 +226,7 @@ private fun MetaSectionRow(
                                 .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
                         )
                         Text(
-                            text = stringResource(Res.string.settings_meta_tab_group_format, item.tabGroup ?: 0),
+                            text = "Tab Group ${item.tabGroup}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium,
@@ -306,7 +259,7 @@ private fun MetaSectionRow(
             ) {
                 Icon(
                     Icons.Rounded.Menu,
-                    contentDescription = stringResource(Res.string.action_reorder),
+                    contentDescription = "Reorder",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -324,7 +277,7 @@ private fun MetaSectionRow(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 TabGroupChip(
-                    label = stringResource(Res.string.settings_meta_none),
+                    label = "None",
                     selected = item.tabGroup == null,
                     onClick = { onTabGroupChange(null) },
                 )
@@ -333,7 +286,7 @@ private fun MetaSectionRow(
                     val isSelected = item.tabGroup == groupId
                     val isFull = currentCount >= 3 && !isSelected
                     TabGroupChip(
-                        label = stringResource(Res.string.settings_meta_group_label, groupId),
+                        label = "Group $groupId",
                         selected = isSelected,
                         enabled = !isFull,
                         onClick = { onTabGroupChange(groupId) },
@@ -381,13 +334,13 @@ private fun MetaEpisodeCardStyleSelector(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = stringResource(Res.string.settings_meta_episode_cards),
+            text = "Episode Cards",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            text = stringResource(Res.string.settings_meta_episode_cards_description),
+            text = "Choose how episodes are rendered on the metadata screen.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -451,59 +404,23 @@ private fun MetaEpisodeCardStyleOption(
                 )
             }
             Text(
-                text = stringResource(style.labelRes),
+                text = if (style == MetaEpisodeCardStyle.Horizontal) "Horizontal" else "List",
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = stringResource(style.descriptionRes),
+                text = if (style == MetaEpisodeCardStyle.Horizontal) {
+                    "Backdrop-style row cards"
+                } else {
+                    "Detail-first stacked cards"
+                },
                 style = if (isTablet) MaterialTheme.typography.bodySmall else MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 }
-
-private val MetaEpisodeCardStyle.labelRes: StringResource
-    get() = when (this) {
-        MetaEpisodeCardStyle.Horizontal -> Res.string.settings_meta_episode_style_horizontal
-        MetaEpisodeCardStyle.List -> Res.string.settings_meta_episode_style_list
-    }
-
-private val MetaEpisodeCardStyle.descriptionRes: StringResource
-    get() = when (this) {
-        MetaEpisodeCardStyle.Horizontal -> Res.string.settings_meta_episode_style_horizontal_description
-        MetaEpisodeCardStyle.List -> Res.string.settings_meta_episode_style_list_description
-    }
-
-private val MetaScreenSectionKey.titleRes: StringResource
-    get() = when (this) {
-        MetaScreenSectionKey.ACTIONS -> Res.string.settings_meta_actions
-        MetaScreenSectionKey.OVERVIEW -> Res.string.settings_meta_overview
-        MetaScreenSectionKey.PRODUCTION -> Res.string.settings_meta_production
-        MetaScreenSectionKey.CAST -> Res.string.settings_meta_cast
-        MetaScreenSectionKey.COMMENTS -> Res.string.settings_meta_comments
-        MetaScreenSectionKey.TRAILERS -> Res.string.settings_meta_trailers
-        MetaScreenSectionKey.EPISODES -> Res.string.settings_meta_episodes
-        MetaScreenSectionKey.DETAILS -> Res.string.settings_meta_details
-        MetaScreenSectionKey.COLLECTION -> Res.string.settings_meta_collection
-        MetaScreenSectionKey.MORE_LIKE_THIS -> Res.string.settings_meta_more_like_this
-    }
-
-private val MetaScreenSectionKey.descriptionRes: StringResource
-    get() = when (this) {
-        MetaScreenSectionKey.ACTIONS -> Res.string.settings_meta_actions_description
-        MetaScreenSectionKey.OVERVIEW -> Res.string.settings_meta_overview_description
-        MetaScreenSectionKey.PRODUCTION -> Res.string.settings_meta_production_description
-        MetaScreenSectionKey.CAST -> Res.string.settings_meta_cast_description
-        MetaScreenSectionKey.COMMENTS -> Res.string.settings_meta_comments_description
-        MetaScreenSectionKey.TRAILERS -> Res.string.settings_meta_trailers_description
-        MetaScreenSectionKey.EPISODES -> Res.string.settings_meta_episodes_description
-        MetaScreenSectionKey.DETAILS -> Res.string.settings_meta_details_description
-        MetaScreenSectionKey.COLLECTION -> Res.string.settings_meta_collection_description
-        MetaScreenSectionKey.MORE_LIKE_THIS -> Res.string.settings_meta_more_like_this_description
-    }
 
 @Composable
 private fun MetaEpisodeCardStylePreview(

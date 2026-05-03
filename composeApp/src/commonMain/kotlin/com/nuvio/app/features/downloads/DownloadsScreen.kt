@@ -35,11 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nuvio.app.core.i18n.localizedByteUnit
 import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioScreenHeader
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun DownloadsScreen(
@@ -69,9 +66,9 @@ fun DownloadsScreen(
         stickyHeader {
             NuvioScreenHeader(
                 title = if (selectedShowId == null) {
-                    stringResource(Res.string.compose_settings_root_downloads_title)
+                    "Downloads"
                 } else {
-                    selectedShowTitle ?: stringResource(Res.string.downloads_show_downloads)
+                    selectedShowTitle ?: "Show Downloads"
                 },
                 onBack = {
                     if (selectedShowId != null) {
@@ -118,7 +115,7 @@ private fun LazyListScope.downloadsRootContent(
 
     if (activeItems.isNotEmpty()) {
         item {
-            SectionTitle(stringResource(Res.string.downloads_section_active))
+            SectionTitle("ACTIVE")
         }
         items(
             items = activeItems,
@@ -137,7 +134,7 @@ private fun LazyListScope.downloadsRootContent(
 
     if (completedMovies.isNotEmpty()) {
         item {
-            SectionTitle(stringResource(Res.string.downloads_section_movies))
+            SectionTitle("MOVIES")
         }
         items(
             items = completedMovies,
@@ -156,7 +153,7 @@ private fun LazyListScope.downloadsRootContent(
 
     if (completedShows.isNotEmpty()) {
         item {
-            SectionTitle(stringResource(Res.string.downloads_section_shows))
+            SectionTitle("SHOWS")
         }
         items(
             items = completedShows,
@@ -189,7 +186,7 @@ private fun LazyListScope.downloadsRootContent(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = stringResource(Res.string.downloads_episode_count, episodes.size),
+                            text = "${episodes.size} downloaded episode${if (episodes.size == 1) "" else "s"}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -213,7 +210,7 @@ private fun LazyListScope.downloadsRootContent(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = stringResource(Res.string.downloads_empty_title),
+                    text = "No downloads yet",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -248,7 +245,7 @@ private fun LazyListScope.downloadsShowContent(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = stringResource(Res.string.downloads_empty_episodes),
+                    text = "No completed episodes",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -258,14 +255,13 @@ private fun LazyListScope.downloadsShowContent(
     }
 
     seasons.forEach { (seasonNumber, entries) ->
+        val seasonTitle = if (seasonNumber == 0) {
+            "Specials"
+        } else {
+            "Season $seasonNumber"
+        }
         item {
-            SectionTitle(
-                if (seasonNumber == 0) {
-                    stringResource(Res.string.episodes_specials)
-                } else {
-                    stringResource(Res.string.episodes_season, seasonNumber)
-                },
-            )
+            SectionTitle(seasonTitle)
         }
 
         val sortedEpisodes = entries.sortedWith(
@@ -349,7 +345,7 @@ private fun DownloadRow(
                             IconButton(onClick = onPause) {
                                 Icon(
                                     imageVector = Icons.Rounded.Pause,
-                                    contentDescription = stringResource(Res.string.compose_action_pause),
+                                    contentDescription = "Pause",
                                 )
                             }
                         }
@@ -357,7 +353,7 @@ private fun DownloadRow(
                             IconButton(onClick = onResume) {
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = stringResource(Res.string.action_resume),
+                                    contentDescription = "Resume",
                                 )
                             }
                         }
@@ -365,7 +361,7 @@ private fun DownloadRow(
                             IconButton(onClick = onRetry) {
                                 Icon(
                                     imageVector = Icons.Rounded.Refresh,
-                                    contentDescription = stringResource(Res.string.action_retry),
+                                    contentDescription = "Retry",
                                 )
                             }
                         }
@@ -373,7 +369,7 @@ private fun DownloadRow(
                             IconButton(onClick = onOpen) {
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = stringResource(Res.string.action_play),
+                                    contentDescription = "Play",
                                 )
                             }
                         }
@@ -381,7 +377,7 @@ private fun DownloadRow(
                     IconButton(onClick = onDelete) {
                         Icon(
                             imageVector = Icons.Rounded.Delete,
-                            contentDescription = stringResource(Res.string.action_delete),
+                            contentDescription = "Delete",
                         )
                     }
                 }
@@ -414,7 +410,6 @@ private fun SectionTitle(title: String) {
     )
 }
 
-@Composable
 private fun statusText(item: DownloadItem): String {
     val size = if (item.totalBytes != null && item.totalBytes > 0L) {
         "${formatBytes(item.downloadedBytes)} / ${formatBytes(item.totalBytes)}"
@@ -423,26 +418,23 @@ private fun statusText(item: DownloadItem): String {
     }
 
     return when (item.status) {
-        DownloadStatus.Downloading -> stringResource(Res.string.downloads_status_downloading, size)
-        DownloadStatus.Paused -> stringResource(Res.string.downloads_status_paused, size)
-        DownloadStatus.Completed -> stringResource(
-            Res.string.downloads_status_completed,
-            formatBytes(item.totalBytes ?: item.downloadedBytes),
-        )
-        DownloadStatus.Failed -> item.errorMessage ?: stringResource(Res.string.downloads_status_failed)
+        DownloadStatus.Downloading -> "Downloading • $size"
+        DownloadStatus.Paused -> "Paused • $size"
+        DownloadStatus.Completed -> "Completed • ${formatBytes(item.totalBytes ?: item.downloadedBytes)}"
+        DownloadStatus.Failed -> item.errorMessage ?: "Failed"
     }
 }
 
 private fun formatBytes(bytes: Long): String {
-    if (bytes <= 0L) return "0 ${localizedByteUnit("B")}"
+    if (bytes <= 0L) return "0 B"
     val kib = 1024.0
     val mib = kib * 1024.0
     val gib = mib * 1024.0
     val value = bytes.toDouble()
     return when {
-        value >= gib -> "${((value / gib) * 10.0).toInt() / 10.0} ${localizedByteUnit("GB")}"
-        value >= mib -> "${((value / mib) * 10.0).toInt() / 10.0} ${localizedByteUnit("MB")}"
-        value >= kib -> "${((value / kib) * 10.0).toInt() / 10.0} ${localizedByteUnit("KB")}"
-        else -> "$bytes ${localizedByteUnit("B")}"
+        value >= gib -> "${((value / gib) * 10.0).toInt() / 10.0} GB"
+        value >= mib -> "${((value / mib) * 10.0).toInt() / 10.0} MB"
+        value >= kib -> "${((value / kib) * 10.0).toInt() / 10.0} KB"
+        else -> "$bytes B"
     }
 }

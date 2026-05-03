@@ -65,10 +65,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.action_back
-import nuvio.composeapp.generated.resources.action_ok
-import org.jetbrains.compose.resources.stringResource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -91,7 +87,7 @@ fun NuvioScreen(
             start = horizontalPadding,
             top = topPadding ?: 10.dp + statusBarTop + nuvioPlatformExtraTopPadding,
             end = horizontalPadding,
-            bottom = nuvioSafeBottomPadding(18.dp),
+            bottom = 18.dp + nuvioPlatformExtraBottomPadding,
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         content = content,
@@ -145,7 +141,7 @@ fun NuvioScreenHeader(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(Res.string.action_back),
+                        contentDescription = "Back",
                         tint = MaterialTheme.colorScheme.onBackground,
                     )
                 }
@@ -237,7 +233,7 @@ fun NuvioBackButton(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     buttonSize: Dp = 40.dp,
     iconSize: Dp = 22.dp,
-    contentDescription: String = stringResource(Res.string.action_back),
+    contentDescription: String = "Back",
 ) {
     Box(
         modifier = modifier
@@ -379,7 +375,7 @@ fun NuvioStatusModal(
     modifier: Modifier = Modifier,
     isVisible: Boolean,
     isBusy: Boolean = false,
-    confirmText: String = stringResource(Res.string.action_ok),
+    confirmText: String = "OK",
     dismissText: String? = null,
     onConfirm: () -> Unit,
     onDismiss: (() -> Unit)? = null,

@@ -24,25 +24,6 @@ import com.nuvio.app.features.trakt.TraktBrandAsset
 import com.nuvio.app.features.trakt.TraktAuthUiState
 import com.nuvio.app.features.trakt.TraktConnectionMode
 import com.nuvio.app.features.trakt.traktBrandPainter
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.action_cancel
-import nuvio.composeapp.generated.resources.settings_trakt_approval_redirect
-import nuvio.composeapp.generated.resources.settings_trakt_authentication
-import nuvio.composeapp.generated.resources.settings_trakt_comments
-import nuvio.composeapp.generated.resources.settings_trakt_comments_description
-import nuvio.composeapp.generated.resources.settings_trakt_connect
-import nuvio.composeapp.generated.resources.settings_trakt_connected_as
-import nuvio.composeapp.generated.resources.settings_trakt_default_user
-import nuvio.composeapp.generated.resources.settings_trakt_disconnect
-import nuvio.composeapp.generated.resources.settings_trakt_failed_open_browser
-import nuvio.composeapp.generated.resources.settings_trakt_features
-import nuvio.composeapp.generated.resources.settings_trakt_finish_sign_in
-import nuvio.composeapp.generated.resources.settings_trakt_intro_description
-import nuvio.composeapp.generated.resources.settings_trakt_missing_credentials
-import nuvio.composeapp.generated.resources.settings_trakt_open_login
-import nuvio.composeapp.generated.resources.settings_trakt_save_actions_description
-import nuvio.composeapp.generated.resources.settings_trakt_sign_in_description
-import org.jetbrains.compose.resources.stringResource
 
 internal fun LazyListScope.traktSettingsContent(
     isTablet: Boolean,
@@ -58,7 +39,7 @@ internal fun LazyListScope.traktSettingsContent(
 
     item {
         SettingsSection(
-            title = stringResource(Res.string.settings_trakt_authentication),
+            title = "AUTHENTICATION",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
@@ -73,13 +54,13 @@ internal fun LazyListScope.traktSettingsContent(
     if (uiState.mode == TraktConnectionMode.CONNECTED) {
         item {
             SettingsSection(
-                title = stringResource(Res.string.settings_trakt_features),
+                title = "FEATURES",
                 isTablet = isTablet,
             ) {
                 SettingsGroup(isTablet = isTablet) {
                     SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_trakt_comments),
-                        description = stringResource(Res.string.settings_trakt_comments_description),
+                        title = "Comments",
+                        description = "Show Trakt comments on movie and show details",
                         checked = commentsEnabled,
                         isTablet = isTablet,
                         onCheckedChange = onCommentsEnabledChange,
@@ -111,12 +92,12 @@ private fun TraktBrandIntro(
         ) {
             androidx.compose.foundation.Image(
                 painter = traktBrandPainter(TraktBrandAsset.Glyph),
-                contentDescription = null,
+                contentDescription = "Trakt",
                 modifier = Modifier.size(if (isTablet) 84.dp else 72.dp),
                 contentScale = ContentScale.Fit,
             )
             Text(
-                text = stringResource(Res.string.settings_trakt_intro_description),
+                text = "Track what you watch, save to watchlist or custom lists, and keep your library synced with Trakt.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -132,7 +113,6 @@ private fun TraktConnectionCard(
     val uriHandler = LocalUriHandler.current
     val horizontalPadding = if (isTablet) 20.dp else 16.dp
     val verticalPadding = if (isTablet) 18.dp else 16.dp
-    val failedOpenBrowserMessage = stringResource(Res.string.settings_trakt_failed_open_browser)
 
     Column(
         modifier = Modifier
@@ -143,16 +123,13 @@ private fun TraktConnectionCard(
         when (uiState.mode) {
             TraktConnectionMode.CONNECTED -> {
                 Text(
-                    text = stringResource(
-                        Res.string.settings_trakt_connected_as,
-                        uiState.username ?: stringResource(Res.string.settings_trakt_default_user),
-                    ),
+                    text = "Connected as ${uiState.username ?: "Trakt user"}",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    text = stringResource(Res.string.settings_trakt_save_actions_description),
+                    text = "Your Save actions can now target Trakt watchlist and personal lists.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -171,20 +148,20 @@ private fun TraktConnectionCard(
                             modifier = Modifier.size(18.dp),
                         )
                     } else {
-                        Text(stringResource(Res.string.settings_trakt_disconnect))
+                        Text("Disconnect")
                     }
                 }
             }
 
             TraktConnectionMode.AWAITING_APPROVAL -> {
                 Text(
-                    text = stringResource(Res.string.settings_trakt_finish_sign_in),
+                    text = "Finish Trakt sign in in your browser",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    text = stringResource(Res.string.settings_trakt_approval_redirect),
+                    text = "After approval, you will be redirected back automatically.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -196,13 +173,13 @@ private fun TraktConnectionCard(
                         runCatching { uriHandler.openUri(authUrl) }
                             .onFailure {
                                 TraktAuthRepository.onAuthLaunchFailed(
-                                    it.message ?: failedOpenBrowserMessage,
+                                    it.message ?: "Failed to open browser",
                                 )
                             }
                     },
                     enabled = !uiState.isLoading,
                 ) {
-                    Text(stringResource(Res.string.settings_trakt_open_login))
+                    Text("Open Trakt Login")
                 }
                 Button(
                     onClick = TraktAuthRepository::onCancelAuthorization,
@@ -212,13 +189,13 @@ private fun TraktConnectionCard(
                         contentColor = MaterialTheme.colorScheme.onSurface,
                     ),
                 ) {
-                    Text(stringResource(Res.string.action_cancel))
+                    Text("Cancel")
                 }
             }
 
             TraktConnectionMode.DISCONNECTED -> {
                 Text(
-                    text = stringResource(Res.string.settings_trakt_sign_in_description),
+                    text = "Sign in with Trakt to enable list-based saving and Trakt library mode.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -228,7 +205,7 @@ private fun TraktConnectionCard(
                         runCatching { uriHandler.openUri(authUrl) }
                             .onFailure {
                                 TraktAuthRepository.onAuthLaunchFailed(
-                                    it.message ?: failedOpenBrowserMessage,
+                                    it.message ?: "Failed to open browser",
                                 )
                             }
                     },
@@ -241,12 +218,12 @@ private fun TraktConnectionCard(
                             modifier = Modifier.size(18.dp),
                         )
                     } else {
-                        Text(stringResource(Res.string.settings_trakt_connect))
+                        Text("Connect Trakt")
                     }
                 }
                 if (!uiState.credentialsConfigured) {
                     Text(
-                        text = stringResource(Res.string.settings_trakt_missing_credentials),
+                        text = "Missing Trakt credentials in local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )

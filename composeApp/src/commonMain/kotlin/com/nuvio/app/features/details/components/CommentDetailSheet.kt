@@ -36,8 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.NuvioModalBottomSheet
 import com.nuvio.app.features.trakt.TraktCommentReview
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,7 +114,7 @@ fun CommentDetailSheet(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                            contentDescription = stringResource(Res.string.action_previous),
+                            contentDescription = "Previous",
                             tint = if (canGoBack) MaterialTheme.colorScheme.onSurface
                             else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                             modifier = Modifier.size(20.dp),
@@ -142,7 +140,7 @@ fun CommentDetailSheet(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            contentDescription = stringResource(Res.string.action_next),
+                            contentDescription = "Next",
                             tint = if (canGoForward) MaterialTheme.colorScheme.onSurface
                             else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                             modifier = Modifier.size(20.dp),
@@ -155,13 +153,13 @@ fun CommentDetailSheet(
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (comment.review) {
-                    CommentDetailChip(text = stringResource(Res.string.detail_comments_badge_review))
+                    CommentDetailChip(text = "Review")
                 }
                 if (comment.hasSpoilerContent) {
-                    CommentDetailChip(text = stringResource(Res.string.detail_comments_badge_spoiler))
+                    CommentDetailChip(text = "Spoiler")
                 }
                 comment.rating?.let { rating ->
-                    CommentDetailChip(text = stringResource(Res.string.detail_comments_badge_rating, rating))
+                    CommentDetailChip(text = "Rating $rating/10")
                 }
             }
 
@@ -175,7 +173,7 @@ fun CommentDetailSheet(
             ) {
                 Text(
                     text = if (comment.hasSpoilerContent) {
-                        stringResource(Res.string.detail_comments_spoiler_hidden_sheet)
+                        "This comment contains spoilers and has been hidden."
                     } else {
                         comment.comment
                     },
@@ -191,7 +189,7 @@ fun CommentDetailSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text = stringResource(Res.string.detail_comments_likes, comment.likes),
+                    text = "${comment.likes} likes",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

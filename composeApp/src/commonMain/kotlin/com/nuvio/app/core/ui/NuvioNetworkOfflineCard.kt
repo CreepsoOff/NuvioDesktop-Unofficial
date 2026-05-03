@@ -10,9 +10,6 @@ import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.network.messageForEmptyState
 import com.nuvio.app.core.network.titleForEmptyState
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.action_retry
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun NuvioNetworkOfflineCard(
@@ -35,7 +32,7 @@ fun NuvioNetworkOfflineCard(
         if (onRetry != null) {
             Spacer(modifier = Modifier.height(16.dp))
             NuvioPrimaryButton(
-                text = stringResource(Res.string.action_retry),
+                text = "Retry",
                 onClick = onRetry,
             )
         }

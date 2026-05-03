@@ -16,20 +16,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.features.notifications.EpisodeReleaseNotificationsRepository
 import com.nuvio.app.features.notifications.EpisodeReleaseNotificationsUiState
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.settings_notifications_disabled_in_app
-import nuvio.composeapp.generated.resources.settings_notifications_episode_release_alerts
-import nuvio.composeapp.generated.resources.settings_notifications_episode_release_alerts_description
-import nuvio.composeapp.generated.resources.settings_notifications_permission_disabled
-import nuvio.composeapp.generated.resources.settings_notifications_scheduled_count
-import nuvio.composeapp.generated.resources.settings_notifications_section_alerts
-import nuvio.composeapp.generated.resources.settings_notifications_section_test
-import nuvio.composeapp.generated.resources.settings_notifications_send_test
-import nuvio.composeapp.generated.resources.settings_notifications_sending_test
-import nuvio.composeapp.generated.resources.settings_notifications_test_for_title
-import nuvio.composeapp.generated.resources.settings_notifications_test_requires_saved_show
-import nuvio.composeapp.generated.resources.settings_notifications_test_title
-import org.jetbrains.compose.resources.stringResource
 
 internal fun LazyListScope.notificationsSettingsContent(
     isTablet: Boolean,
@@ -37,13 +23,13 @@ internal fun LazyListScope.notificationsSettingsContent(
 ) {
     item {
         SettingsSection(
-            title = stringResource(Res.string.settings_notifications_section_alerts),
+            title = "ALERTS",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_notifications_episode_release_alerts),
-                    description = stringResource(Res.string.settings_notifications_episode_release_alerts_description),
+                    title = "Episode release alerts",
+                    description = "Schedule local notifications when a new episode for a saved show becomes available.",
                     checked = uiState.isEnabled,
                     enabled = !uiState.isLoading,
                     isTablet = isTablet,
@@ -55,7 +41,7 @@ internal fun LazyListScope.notificationsSettingsContent(
 
     item {
         SettingsSection(
-            title = stringResource(Res.string.settings_notifications_section_test),
+            title = "TEST",
             isTablet = isTablet,
         ) {
             NotificationTestCard(
@@ -88,23 +74,23 @@ private fun NotificationTestCard(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.settings_notifications_test_title),
+                    text = "Test notification",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = uiState.testTargetTitle?.let { title ->
-                        stringResource(Res.string.settings_notifications_test_for_title, title)
-                    } ?: stringResource(Res.string.settings_notifications_test_requires_saved_show),
+                        "Send a local test notification for $title."
+                    } ?: "Save a show to your library first to test notifications.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = if (uiState.isEnabled) {
-                        stringResource(Res.string.settings_notifications_scheduled_count, uiState.scheduledCount)
+                        "${uiState.scheduledCount} release alerts are currently scheduled on this device."
                     } else {
-                        stringResource(Res.string.settings_notifications_disabled_in_app)
+                        "Notifications are currently disabled in Nuvio."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -122,13 +108,7 @@ private fun NotificationTestCard(
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             ) {
-                Text(
-                    if (uiState.isSendingTest) {
-                        stringResource(Res.string.settings_notifications_sending_test)
-                    } else {
-                        stringResource(Res.string.settings_notifications_send_test)
-                    },
-                )
+                Text(if (uiState.isSendingTest) "Sending Test Notification..." else "Send Test Notification")
             }
 
             uiState.statusMessage?.let { message ->
@@ -149,7 +129,7 @@ private fun NotificationTestCard(
 
             if (!uiState.permissionGranted) {
                 Text(
-                    text = stringResource(Res.string.settings_notifications_permission_disabled),
+                    text = "System notifications are disabled for Nuvio. Enable them to receive alerts and test notifications.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )

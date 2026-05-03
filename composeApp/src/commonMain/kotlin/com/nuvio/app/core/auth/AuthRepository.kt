@@ -16,8 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.getString
 
 object AuthRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -84,6 +82,7 @@ object AuthRepository {
 
     suspend fun signUpWithEmail(email: String, password: String): Result<Unit> = runCatching {
         _error.value = null
+        ensureSupabaseConfigured()
         SupabaseProvider.client.auth.signUpWith(Email) {
             this.email = email
             this.password = password
@@ -91,18 +90,19 @@ object AuthRepository {
         Unit
     }.onFailure { e ->
         log.e(e) { "Email sign-up failed" }
-        _error.value = e.message ?: getString(Res.string.auth_sign_up_failed)
+        _error.value = e.message ?: "Sign-up failed"
     }
 
     suspend fun signInWithEmail(email: String, password: String): Result<Unit> = runCatching {
         _error.value = null
+        ensureSupabaseConfigured()
         SupabaseProvider.client.auth.signInWith(Email) {
             this.email = email
             this.password = password
         }
     }.onFailure { e ->
         log.e(e) { "Email sign-in failed" }
-        _error.value = e.message ?: getString(Res.string.auth_sign_in_failed)
+        _error.value = e.message ?: "Sign-in failed"
     }
 
     suspend fun signOut(): Result<Unit> = runCatching {
@@ -116,7 +116,7 @@ object AuthRepository {
         LocalAccountDataCleaner.wipe()
     }.onFailure { e ->
         log.e(e) { "Sign-out failed" }
-        _error.value = e.message ?: getString(Res.string.auth_sign_out_failed)
+        _error.value = e.message ?: "Sign-out failed"
     }
 
     suspend fun deleteAccount(): Result<Unit> = runCatching {
@@ -126,10 +126,16 @@ object AuthRepository {
         LocalAccountDataCleaner.wipe()
     }.onFailure { e ->
         log.e(e) { "Account deletion failed" }
-        _error.value = e.message ?: getString(Res.string.auth_account_deletion_failed)
+        _error.value = e.message ?: "Account deletion failed"
     }
 
     fun clearError() {
         _error.value = null
+    }
+
+    private fun ensureSupabaseConfigured() {
+        check(SupabaseProvider.isConfigured) {
+            "Supabase anon key is missing. Set SUPABASE_ANON_KEY in local.properties and rebuild the desktop app."
+        }
     }
 }

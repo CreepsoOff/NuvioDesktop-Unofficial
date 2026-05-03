@@ -58,9 +58,6 @@ import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.streams.StreamAutoPlayMode
 import com.nuvio.app.features.streams.StreamAutoPlaySource
 import com.nuvio.app.isIos
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.stringResource
 
 internal fun LazyListScope.playbackSettingsContent(
     isTablet: Boolean,
@@ -147,21 +144,21 @@ private fun PlaybackSettingsSection(
         verticalArrangement = Arrangement.spacedBy(sectionSpacing),
     ) {
         SettingsSection(
-            title = stringResource(Res.string.settings_playback_section_player),
+            title = "PLAYER",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_show_loading_overlay),
-                    description = stringResource(Res.string.settings_playback_show_loading_overlay_description),
+                    title = "Show Loading Overlay",
+                    description = "Show the opening loading overlay while a stream starts playing.",
                     checked = showLoadingOverlay,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setShowLoadingOverlay,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_hold_to_speed),
-                    description = stringResource(Res.string.settings_playback_hold_to_speed_description),
+                    title = "Hold To Speed",
+                    description = "Long-press anywhere on the player surface to temporarily boost playback speed.",
                     checked = holdToSpeedEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setHoldToSpeedEnabled,
@@ -169,7 +166,7 @@ private fun PlaybackSettingsSection(
                 if (holdToSpeedEnabled) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_playback_hold_speed),
+                        title = "Hold Speed",
                         description = formatPlaybackSpeedLabel(holdToSpeedValue),
                         isTablet = isTablet,
                         onClick = { showHoldToSpeedValueDialog = true },
@@ -179,15 +176,15 @@ private fun PlaybackSettingsSection(
         }
 
         SettingsSection(
-            title = stringResource(Res.string.settings_playback_section_subtitle_audio),
+            title = "SUBTITLE AND AUDIO",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsNavigationRow(
-                    title = stringResource(Res.string.settings_playback_preferred_audio_language),
+                    title = "Preferred Audio Language",
                     description = when (preferredAudioLanguage) {
-                        AudioLanguageOption.DEFAULT -> stringResource(Res.string.settings_playback_option_default)
-                        AudioLanguageOption.DEVICE -> stringResource(Res.string.settings_playback_option_device_language)
+                        AudioLanguageOption.DEFAULT -> "Default"
+                        AudioLanguageOption.DEVICE -> "Device Language"
                         else -> languageLabelForCode(preferredAudioLanguage)
                     },
                     isTablet = isTablet,
@@ -195,18 +192,18 @@ private fun PlaybackSettingsSection(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
-                    title = stringResource(Res.string.settings_playback_secondary_audio_language),
+                    title = "Secondary Audio Language",
                     description = languageLabelForCode(secondaryPreferredAudioLanguage),
                     isTablet = isTablet,
                     onClick = { showSecondaryAudioDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
-                    title = stringResource(Res.string.settings_playback_preferred_subtitle_language),
+                    title = "Preferred Subtitle Language",
                     description = when (preferredSubtitleLanguage) {
-                        SubtitleLanguageOption.NONE -> stringResource(Res.string.settings_playback_option_none)
-                        SubtitleLanguageOption.DEVICE -> stringResource(Res.string.settings_playback_option_device_language)
-                        SubtitleLanguageOption.FORCED -> stringResource(Res.string.settings_playback_option_forced)
+                        SubtitleLanguageOption.NONE -> "None"
+                        SubtitleLanguageOption.DEVICE -> "Device Language"
+                        SubtitleLanguageOption.FORCED -> "Forced"
                         else -> languageLabelForCode(preferredSubtitleLanguage)
                     },
                     isTablet = isTablet,
@@ -214,7 +211,7 @@ private fun PlaybackSettingsSection(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
-                    title = stringResource(Res.string.settings_playback_secondary_subtitle_language),
+                    title = "Secondary Subtitle Language",
                     description = languageLabelForCode(secondaryPreferredSubtitleLanguage),
                     isTablet = isTablet,
                     onClick = { showSecondarySubtitleDialog = true },
@@ -223,13 +220,13 @@ private fun PlaybackSettingsSection(
         }
 
         SettingsSection(
-            title = stringResource(Res.string.settings_playback_section_stream_selection),
+            title = "STREAM SELECTION",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_reuse_last_link),
-                    description = stringResource(Res.string.settings_playback_reuse_last_link_description),
+                    title = "Reuse Last Link",
+                    description = "Auto-play your last working stream for this same movie/episode when cache is still valid.",
                     checked = streamReuseLastLinkEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setStreamReuseLastLinkEnabled,
@@ -237,7 +234,7 @@ private fun PlaybackSettingsSection(
                 if (streamReuseLastLinkEnabled) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_playback_last_link_cache_duration),
+                        title = "Last Link Cache Duration",
                         description = formatReuseCacheDuration(streamReuseLastLinkCacheHours),
                         isTablet = isTablet,
                         onClick = { showReuseCacheDurationDialog = true },
@@ -247,23 +244,26 @@ private fun PlaybackSettingsSection(
         }
 
         SettingsSection(
-            title = stringResource(Res.string.settings_playback_section_stream_auto_play),
+            title = "STREAM AUTO-PLAY",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsNavigationRow(
-                    title = stringResource(Res.string.settings_playback_stream_selection_mode),
-                    description = stringResource(autoPlayPlayerSettings.streamAutoPlayMode.labelRes),
+                    title = "Stream Selection Mode",
+                    description = when (autoPlayPlayerSettings.streamAutoPlayMode) {
+                        StreamAutoPlayMode.MANUAL -> "Manual"
+                        StreamAutoPlayMode.FIRST_STREAM -> "First Available Stream"
+                        StreamAutoPlayMode.REGEX_MATCH -> "Regex Match"
+                    },
                     isTablet = isTablet,
                     onClick = { showAutoPlayModeDialog = true },
                 )
                 if (autoPlayPlayerSettings.streamAutoPlayMode != StreamAutoPlayMode.MANUAL) {
                     if (autoPlayPlayerSettings.streamAutoPlayMode == StreamAutoPlayMode.REGEX_MATCH) {
                         SettingsGroupDivider(isTablet = isTablet)
-                        val notSetLabel = stringResource(Res.string.settings_playback_not_set)
                         SettingsNavigationRow(
-                            title = stringResource(Res.string.settings_playback_regex_pattern),
-                            description = autoPlayPlayerSettings.streamAutoPlayRegex.ifBlank { notSetLabel },
+                            title = "Regex Pattern",
+                            description = autoPlayPlayerSettings.streamAutoPlayRegex.ifBlank { "Not set" },
                             isTablet = isTablet,
                             onClick = { showAutoPlayRegexDialog = true },
                         )
@@ -271,9 +271,9 @@ private fun PlaybackSettingsSection(
                     SettingsGroupDivider(isTablet = isTablet)
                     val timeoutSec = autoPlayPlayerSettings.streamAutoPlayTimeoutSeconds
                     val timeoutLabel = when (timeoutSec) {
-                        0 -> stringResource(Res.string.settings_playback_timeout_instant)
-                        11 -> stringResource(Res.string.settings_playback_timeout_unlimited)
-                        else -> stringResource(Res.string.settings_playback_timeout_seconds, timeoutSec)
+                        0 -> "Instant"
+                        11 -> "Unlimited"
+                        else -> "${timeoutSec}s"
                     }
                     Column(
                         modifier = Modifier
@@ -287,12 +287,12 @@ private fun PlaybackSettingsSection(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = stringResource(Res.string.settings_playback_stream_timeout),
+                                    text = "Stream Timeout",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Text(
-                                    text = stringResource(Res.string.settings_playback_stream_timeout_description),
+                                    text = "How long to wait for streams before auto-selecting.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -330,23 +330,24 @@ private fun PlaybackSettingsSection(
                     }
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_playback_source_scope),
-                        description = stringResource(autoPlayPlayerSettings.streamAutoPlaySource.labelRes(pluginsEnabled)),
+                        title = "Source Scope",
+                        description = when (autoPlayPlayerSettings.streamAutoPlaySource) {
+                            StreamAutoPlaySource.ALL_SOURCES -> if (pluginsEnabled) "All Sources" else "All Addons"
+                            StreamAutoPlaySource.INSTALLED_ADDONS_ONLY -> "Installed Addons Only"
+                            StreamAutoPlaySource.ENABLED_PLUGINS_ONLY -> "Enabled Plugins Only"
+                        },
                         isTablet = isTablet,
                         onClick = { showAutoPlaySourceDialog = true },
                     )
                     if (autoPlayPlayerSettings.streamAutoPlaySource != StreamAutoPlaySource.ENABLED_PLUGINS_ONLY) {
                         SettingsGroupDivider(isTablet = isTablet)
                         val addonSubtitle = if (autoPlayPlayerSettings.streamAutoPlaySelectedAddons.isEmpty()) {
-                            stringResource(Res.string.settings_playback_all_addons)
+                            "All Addons"
                         } else {
-                            stringResource(
-                                Res.string.settings_playback_selected_count,
-                                autoPlayPlayerSettings.streamAutoPlaySelectedAddons.size,
-                            )
+                            "${autoPlayPlayerSettings.streamAutoPlaySelectedAddons.size} selected"
                         }
                         SettingsNavigationRow(
-                            title = stringResource(Res.string.settings_playback_allowed_addons),
+                            title = "Allowed Addons",
                             description = addonSubtitle,
                             isTablet = isTablet,
                             onClick = { showAutoPlayAddonSelectionDialog = true },
@@ -355,15 +356,12 @@ private fun PlaybackSettingsSection(
                     if (pluginsEnabled && autoPlayPlayerSettings.streamAutoPlaySource != StreamAutoPlaySource.INSTALLED_ADDONS_ONLY) {
                         SettingsGroupDivider(isTablet = isTablet)
                         val pluginSubtitle = if (autoPlayPlayerSettings.streamAutoPlaySelectedPlugins.isEmpty()) {
-                            stringResource(Res.string.settings_playback_all_plugins)
+                            "All Plugins"
                         } else {
-                            stringResource(
-                                Res.string.settings_playback_selected_count,
-                                autoPlayPlayerSettings.streamAutoPlaySelectedPlugins.size,
-                            )
+                            "${autoPlayPlayerSettings.streamAutoPlaySelectedPlugins.size} selected"
                         }
                         SettingsNavigationRow(
-                            title = stringResource(Res.string.settings_playback_allowed_plugins),
+                            title = "Allowed Plugins",
                             description = pluginSubtitle,
                             isTablet = isTablet,
                             onClick = { showAutoPlayPluginSelectionDialog = true },
@@ -375,28 +373,33 @@ private fun PlaybackSettingsSection(
 
         if (!isIos) {
             SettingsSection(
-                title = stringResource(Res.string.settings_playback_section_decoder),
+                title = "DECODER",
                 isTablet = isTablet,
             ) {
                 SettingsGroup(isTablet = isTablet) {
                     SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_playback_decoder_priority),
-                        description = decoderPriorityLabel(decoderPriority),
+                        title = "Decoder Priority",
+                        description = when (decoderPriority) {
+                            0 -> "Device Only"
+                            1 -> "Prefer Device"
+                            2 -> "Prefer App (FFmpeg)"
+                            else -> "Prefer Device"
+                        },
                         isTablet = isTablet,
                         onClick = { showDecoderPriorityDialog = true },
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_playback_map_dv7_to_hevc),
-                        description = stringResource(Res.string.settings_playback_map_dv7_to_hevc_description),
+                        title = "Map DV7 to HEVC",
+                        description = "Dolby Vision Profile 7 to HEVC fallback for unsupported devices.",
                         checked = mapDV7ToHevc,
                         isTablet = isTablet,
                         onCheckedChange = PlayerSettingsRepository::setMapDV7ToHevc,
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_playback_tunneled_playback),
-                        description = stringResource(Res.string.settings_playback_tunneled_playback_description),
+                        title = "Tunneled Playback",
+                        description = "Enable tunneled playback for lower latency audio/video sync.",
                         checked = tunnelingEnabled,
                         isTablet = isTablet,
                         onCheckedChange = PlayerSettingsRepository::setTunnelingEnabled,
@@ -407,13 +410,13 @@ private fun PlaybackSettingsSection(
 
         if (!isIos) {
             SettingsSection(
-                title = stringResource(Res.string.settings_playback_section_subtitle_rendering),
+                title = "SUBTITLE RENDERING",
                 isTablet = isTablet,
             ) {
                 SettingsGroup(isTablet = isTablet) {
                     SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_playback_enable_libass),
-                        description = stringResource(Res.string.settings_playback_enable_libass_description),
+                        title = "Enable libass",
+                        description = "Use libass for ASS/SSA subtitle rendering instead of the default renderer.",
                         checked = useLibass,
                         isTablet = isTablet,
                         onCheckedChange = PlayerSettingsRepository::setUseLibass,
@@ -421,8 +424,15 @@ private fun PlaybackSettingsSection(
                     if (useLibass) {
                         SettingsGroupDivider(isTablet = isTablet)
                         SettingsNavigationRow(
-                            title = stringResource(Res.string.settings_playback_render_type),
-                            description = libassRenderTypeLabel(libassRenderType),
+                            title = "Render Type",
+                            description = when (libassRenderType) {
+                                "OVERLAY_OPEN_GL" -> "Overlay OpenGL"
+                                "OVERLAY_CANVAS" -> "Overlay Canvas"
+                                "EFFECTS_OPEN_GL" -> "Effects OpenGL"
+                                "EFFECTS_CANVAS" -> "Effects Canvas"
+                                "CUES" -> "Standard (Cues)"
+                                else -> "Standard (Cues)"
+                            },
                             isTablet = isTablet,
                             onClick = { showLibassRenderTypeDialog = true },
                         )
@@ -432,21 +442,21 @@ private fun PlaybackSettingsSection(
         }
 
         SettingsSection(
-            title = stringResource(Res.string.settings_playback_section_skip_segments),
+            title = "SKIP SEGMENTS",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_skip_intro_outro_recap),
-                    description = stringResource(Res.string.settings_playback_skip_intro_outro_recap_description),
+                    title = "Skip Intro/Outro/Recap",
+                    description = "Show skip button during detected intro, outro, and recap segments.",
                     checked = autoPlayPlayerSettings.skipIntroEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setSkipIntroEnabled,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_anime_skip),
-                    description = stringResource(Res.string.settings_playback_anime_skip_description),
+                    title = "Anime Skip",
+                    description = "Also search AnimeSkip for skip timestamps (requires client ID).",
                     checked = autoPlayPlayerSettings.animeSkipEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setAnimeSkipEnabled,
@@ -454,10 +464,9 @@ private fun PlaybackSettingsSection(
                 if (autoPlayPlayerSettings.animeSkipEnabled) {
                     SettingsGroupDivider(isTablet = isTablet)
                     var showAnimeSkipClientIdDialog by remember { mutableStateOf(false) }
-                    val notSetLabel = stringResource(Res.string.settings_playback_not_set)
                     SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_playback_anime_skip_client_id),
-                        description = autoPlayPlayerSettings.animeSkipClientId.ifBlank { notSetLabel },
+                        title = "AnimeSkip Client ID",
+                        description = autoPlayPlayerSettings.animeSkipClientId.ifBlank { "Not set" },
                         isTablet = isTablet,
                         onClick = { showAnimeSkipClientIdDialog = true },
                     )
@@ -476,21 +485,21 @@ private fun PlaybackSettingsSection(
         }
 
         SettingsSection(
-            title = stringResource(Res.string.settings_playback_section_next_episode),
+            title = "NEXT EPISODE",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_auto_play_next_episode),
-                    description = stringResource(Res.string.settings_playback_auto_play_next_episode_description),
+                    title = "Auto-Play Next Episode",
+                    description = "Automatically find and play the next episode when the threshold is reached.",
                     checked = autoPlayPlayerSettings.streamAutoPlayNextEpisodeEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setStreamAutoPlayNextEpisodeEnabled,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_prefer_binge_group),
-                    description = stringResource(Res.string.settings_playback_prefer_binge_group_description),
+                    title = "Prefer Binge Group",
+                    description = "When auto-playing, prefer a stream from the same binge group as the current one.",
                     checked = autoPlayPlayerSettings.streamAutoPlayPreferBingeGroup,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setStreamAutoPlayPreferBingeGroup,
@@ -498,8 +507,11 @@ private fun PlaybackSettingsSection(
                 SettingsGroupDivider(isTablet = isTablet)
                 var showThresholdModeDialog by remember { mutableStateOf(false) }
                 SettingsNavigationRow(
-                    title = stringResource(Res.string.settings_playback_threshold_mode),
-                    description = stringResource(autoPlayPlayerSettings.nextEpisodeThresholdMode.labelRes),
+                    title = "Threshold Mode",
+                    description = when (autoPlayPlayerSettings.nextEpisodeThresholdMode) {
+                        com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.PERCENTAGE -> "Percentage"
+                        com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.MINUTES_BEFORE_END -> "Minutes Before End"
+                    },
                     isTablet = isTablet,
                     onClick = { showThresholdModeDialog = true },
                 )
@@ -529,21 +541,18 @@ private fun PlaybackSettingsSection(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = stringResource(Res.string.settings_playback_threshold_percentage),
+                                        text = "Threshold Percentage",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface,
                                     )
                                     Text(
-                                        text = stringResource(Res.string.settings_playback_threshold_percentage_description),
+                                        text = "Show next episode card when playback reaches this percentage.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                                 Text(
-                                    text = stringResource(
-                                        Res.string.settings_playback_threshold_percentage_value,
-                                        thresholdPercent.toInt(),
-                                    ),
+                                    text = "${thresholdPercent.toInt()}%",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.SemiBold,
@@ -588,21 +597,18 @@ private fun PlaybackSettingsSection(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = stringResource(Res.string.settings_playback_minutes_before_end),
+                                        text = "Minutes Before End",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface,
                                     )
                                     Text(
-                                        text = stringResource(Res.string.settings_playback_minutes_before_end_description),
+                                        text = "Show next episode card this many minutes before the end.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                                 Text(
-                                    text = stringResource(
-                                        Res.string.settings_playback_minutes_value,
-                                        thresholdMinutes.toInt(),
-                                    ),
+                                    text = "${thresholdMinutes.toInt()} min",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.SemiBold,
@@ -640,12 +646,12 @@ private fun PlaybackSettingsSection(
 
     if (showPreferredAudioDialog) {
         LanguageSelectionDialog(
-            title = stringResource(Res.string.settings_playback_preferred_audio_language),
+            title = "Preferred Audio Language",
             options = listOf(
-                LanguageSelectionOption(AudioLanguageOption.DEFAULT, stringResource(Res.string.settings_playback_option_default)),
-                LanguageSelectionOption(AudioLanguageOption.DEVICE, stringResource(Res.string.settings_playback_option_device_language)),
+                LanguageSelectionOption(AudioLanguageOption.DEFAULT, "Default"),
+                LanguageSelectionOption(AudioLanguageOption.DEVICE, "Device Language"),
             ) + AvailableLanguageOptions.map { option ->
-                LanguageSelectionOption(option.code, stringResource(option.labelRes))
+                LanguageSelectionOption(option.code, option.label)
             },
             selectedValue = preferredAudioLanguage,
             onSelect = { value ->
@@ -658,11 +664,11 @@ private fun PlaybackSettingsSection(
 
     if (showSecondaryAudioDialog) {
         LanguageSelectionDialog(
-            title = stringResource(Res.string.settings_playback_secondary_audio_language),
+            title = "Secondary Audio Language",
             options = listOf(
-                LanguageSelectionOption(null, stringResource(Res.string.settings_playback_option_none)),
+                LanguageSelectionOption(null, "None"),
             ) + AvailableLanguageOptions.map { option ->
-                LanguageSelectionOption(option.code, stringResource(option.labelRes))
+                LanguageSelectionOption(option.code, option.label)
             },
             selectedValue = secondaryPreferredAudioLanguage,
             onSelect = { value ->
@@ -675,13 +681,13 @@ private fun PlaybackSettingsSection(
 
     if (showPreferredSubtitleDialog) {
         LanguageSelectionDialog(
-            title = stringResource(Res.string.settings_playback_preferred_subtitle_language),
+            title = "Preferred Subtitle Language",
             options = listOf(
-                LanguageSelectionOption(SubtitleLanguageOption.NONE, stringResource(Res.string.settings_playback_option_none)),
-                LanguageSelectionOption(SubtitleLanguageOption.DEVICE, stringResource(Res.string.settings_playback_option_device_language)),
-                LanguageSelectionOption(SubtitleLanguageOption.FORCED, stringResource(Res.string.settings_playback_option_forced)),
+                LanguageSelectionOption(SubtitleLanguageOption.NONE, "None"),
+                LanguageSelectionOption(SubtitleLanguageOption.DEVICE, "Device Language"),
+                LanguageSelectionOption(SubtitleLanguageOption.FORCED, "Forced"),
             ) + AvailableLanguageOptions.map { option ->
-                LanguageSelectionOption(option.code, stringResource(option.labelRes))
+                LanguageSelectionOption(option.code, option.label)
             },
             selectedValue = preferredSubtitleLanguage,
             onSelect = { value ->
@@ -694,12 +700,12 @@ private fun PlaybackSettingsSection(
 
     if (showSecondarySubtitleDialog) {
         LanguageSelectionDialog(
-            title = stringResource(Res.string.settings_playback_secondary_subtitle_language),
+            title = "Secondary Subtitle Language",
             options = listOf(
-                LanguageSelectionOption(null, stringResource(Res.string.settings_playback_option_none)),
-                LanguageSelectionOption(SubtitleLanguageOption.FORCED, stringResource(Res.string.settings_playback_option_forced)),
+                LanguageSelectionOption(null, "None"),
+                LanguageSelectionOption(SubtitleLanguageOption.FORCED, "Forced"),
             ) + AvailableLanguageOptions.map { option ->
-                LanguageSelectionOption(option.code, stringResource(option.labelRes))
+                LanguageSelectionOption(option.code, option.label)
             },
             selectedValue = secondaryPreferredSubtitleLanguage,
             onSelect = { value ->
@@ -785,8 +791,8 @@ private fun PlaybackSettingsSection(
             .distinct()
             .sorted()
         StreamAutoPlayProviderSelectionDialog(
-            title = stringResource(Res.string.settings_playback_allowed_addons),
-            allLabel = stringResource(Res.string.settings_playback_all_addons),
+            title = "Allowed Addons",
+            allLabel = "All Addons",
             items = addonNames,
             selectedItems = autoPlayPlayerSettings.streamAutoPlaySelectedAddons,
             onSelectionSaved = {
@@ -804,8 +810,8 @@ private fun PlaybackSettingsSection(
             .distinct()
             .sorted()
         StreamAutoPlayProviderSelectionDialog(
-            title = stringResource(Res.string.settings_playback_allowed_plugins),
-            allLabel = stringResource(Res.string.settings_playback_all_plugins),
+            title = "Allowed Plugins",
+            allLabel = "All Plugins",
             items = pluginNames,
             selectedItems = autoPlayPlayerSettings.streamAutoPlaySelectedPlugins,
             onSelectionSaved = {
@@ -828,16 +834,13 @@ private fun PlaybackSettingsSection(
     }
 }
 
-@Composable
 private fun formatReuseCacheDuration(hours: Int): String = when {
-    hours < 24 && hours == 1 -> stringResource(Res.string.settings_playback_duration_hour_one, hours)
-    hours < 24 -> stringResource(Res.string.settings_playback_duration_hours, hours)
+    hours < 24 -> "$hours hour${if (hours != 1) "s" else ""}"
     hours % 24 == 0 -> {
         val days = hours / 24
-        if (days == 1) stringResource(Res.string.settings_playback_duration_day_one, days)
-        else stringResource(Res.string.settings_playback_duration_days, days)
+        "$days day${if (days != 1) "s" else ""}"
     }
-    else -> stringResource(Res.string.settings_playback_duration_hours, hours)
+    else -> "$hours hours"
 }
 
 private data class LanguageSelectionOption(
@@ -926,7 +929,7 @@ private fun LanguageSelectionDialog(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stringResource(Res.string.settings_playback_dialog_close),
+                    text = "Tap outside to close",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -957,7 +960,7 @@ private fun ReuseCacheDurationDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.settings_playback_last_link_cache_duration),
+                    text = "Last Link Cache Duration",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
@@ -1013,7 +1016,7 @@ private fun ReuseCacheDurationDialog(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stringResource(Res.string.settings_playback_dialog_close),
+                    text = "Tap outside to close",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1030,9 +1033,9 @@ private fun DecoderPriorityDialog(
     onDismiss: () -> Unit,
 ) {
     val options = listOf(
-        0 to Res.string.settings_playback_decoder_device_only,
-        1 to Res.string.settings_playback_decoder_prefer_device,
-        2 to Res.string.settings_playback_decoder_prefer_app,
+        0 to "Device Only",
+        1 to "Prefer Device",
+        2 to "Prefer App (FFmpeg)",
     )
 
     BasicAlertDialog(
@@ -1048,7 +1051,7 @@ private fun DecoderPriorityDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.settings_playback_decoder_priority),
+                    text = "Decoder Priority",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
@@ -1058,7 +1061,7 @@ private fun DecoderPriorityDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    options.forEach { (priority, labelRes) ->
+                    options.forEach { (priority, label) ->
                         val isSelected = priority == selectedPriority
                         val containerColor = if (isSelected) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
@@ -1080,7 +1083,7 @@ private fun DecoderPriorityDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = stringResource(labelRes),
+                                    text = label,
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.weight(1f),
@@ -1104,7 +1107,7 @@ private fun DecoderPriorityDialog(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stringResource(Res.string.settings_playback_dialog_close),
+                    text = "Tap outside to close",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1135,7 +1138,7 @@ private fun HoldToSpeedValueDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.settings_playback_hold_speed),
+                    text = "Hold Speed",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
@@ -1191,7 +1194,7 @@ private fun HoldToSpeedValueDialog(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stringResource(Res.string.settings_playback_dialog_close),
+                    text = "Tap outside to close",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1208,11 +1211,11 @@ private fun LibassRenderTypeDialog(
     onDismiss: () -> Unit,
 ) {
     val options = listOf(
-        "OVERLAY_OPEN_GL" to Res.string.settings_playback_render_type_overlay_opengl,
-        "OVERLAY_CANVAS" to Res.string.settings_playback_render_type_overlay_canvas,
-        "EFFECTS_OPEN_GL" to Res.string.settings_playback_render_type_effects_opengl,
-        "EFFECTS_CANVAS" to Res.string.settings_playback_render_type_effects_canvas,
-        "CUES" to Res.string.settings_playback_render_type_cues,
+        "OVERLAY_OPEN_GL" to "Overlay OpenGL",
+        "OVERLAY_CANVAS" to "Overlay Canvas",
+        "EFFECTS_OPEN_GL" to "Effects OpenGL",
+        "EFFECTS_CANVAS" to "Effects Canvas",
+        "CUES" to "Standard (Cues)",
     )
 
     BasicAlertDialog(
@@ -1228,7 +1231,7 @@ private fun LibassRenderTypeDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.settings_playback_render_type),
+                    text = "Render Type",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
@@ -1238,7 +1241,7 @@ private fun LibassRenderTypeDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    options.forEach { (value, labelRes) ->
+                    options.forEach { (value, label) ->
                         val isSelected = value == selectedRenderType
                         val containerColor = if (isSelected) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
@@ -1260,7 +1263,7 @@ private fun LibassRenderTypeDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = stringResource(labelRes),
+                                    text = label,
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.weight(1f),
@@ -1284,7 +1287,7 @@ private fun LibassRenderTypeDialog(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stringResource(Res.string.settings_playback_dialog_close),
+                    text = "Tap outside to close",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1301,21 +1304,9 @@ private fun StreamAutoPlayModeDialog(
     onDismiss: () -> Unit,
 ) {
     val options = listOf(
-        Triple(
-            StreamAutoPlayMode.MANUAL,
-            Res.string.settings_playback_stream_selection_mode_manual,
-            Res.string.settings_playback_stream_selection_mode_manual_description,
-        ),
-        Triple(
-            StreamAutoPlayMode.FIRST_STREAM,
-            Res.string.settings_playback_stream_selection_mode_first_stream,
-            Res.string.settings_playback_stream_selection_mode_first_stream_description,
-        ),
-        Triple(
-            StreamAutoPlayMode.REGEX_MATCH,
-            Res.string.settings_playback_stream_selection_mode_regex,
-            Res.string.settings_playback_stream_selection_mode_regex_description,
-        ),
+        Triple(StreamAutoPlayMode.MANUAL, "Manual", "Select streams manually each time."),
+        Triple(StreamAutoPlayMode.FIRST_STREAM, "First Available Stream", "Automatically play the first stream found."),
+        Triple(StreamAutoPlayMode.REGEX_MATCH, "Regex Match", "Auto-select a stream matching a regex pattern."),
     )
 
     BasicAlertDialog(
@@ -1331,7 +1322,7 @@ private fun StreamAutoPlayModeDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.settings_playback_stream_selection_mode),
+                    text = "Stream Selection Mode",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
@@ -1341,7 +1332,7 @@ private fun StreamAutoPlayModeDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    options.forEach { (mode, titleRes, descriptionRes) ->
+                    options.forEach { (mode, title, description) ->
                         val isSelected = mode == selectedMode
                         val containerColor = if (isSelected) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
@@ -1364,13 +1355,13 @@ private fun StreamAutoPlayModeDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = stringResource(titleRes),
+                                        text = title,
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface,
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = stringResource(descriptionRes),
+                                        text = description,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -1394,7 +1385,7 @@ private fun StreamAutoPlayModeDialog(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stringResource(Res.string.settings_playback_dialog_close),
+                    text = "Tap outside to close",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1415,31 +1406,27 @@ private fun StreamAutoPlaySourceDialog(
         add(
             Triple(
                 StreamAutoPlaySource.ALL_SOURCES,
+                if (pluginsEnabled) "All Sources" else "All Addons",
                 if (pluginsEnabled) {
-                    Res.string.settings_playback_source_scope_all_sources
+                    "Consider streams from both addons and plugins."
                 } else {
-                    Res.string.settings_playback_source_scope_all_addons
-                },
-                if (pluginsEnabled) {
-                    Res.string.settings_playback_source_scope_all_sources_description
-                } else {
-                    Res.string.settings_playback_source_scope_all_addons_description
+                    "Consider streams from all installed addons."
                 },
             ),
         )
         add(
             Triple(
                 StreamAutoPlaySource.INSTALLED_ADDONS_ONLY,
-                Res.string.settings_playback_source_scope_installed_addons_only,
-                Res.string.settings_playback_source_scope_installed_addons_only_description,
+                "Installed Addons Only",
+                "Only consider streams from installed addons.",
             ),
         )
         if (pluginsEnabled) {
             add(
                 Triple(
                     StreamAutoPlaySource.ENABLED_PLUGINS_ONLY,
-                    Res.string.settings_playback_source_scope_enabled_plugins_only,
-                    Res.string.settings_playback_source_scope_enabled_plugins_only_description,
+                    "Enabled Plugins Only",
+                    "Only consider streams from enabled plugins.",
                 ),
             )
         }
@@ -1458,7 +1445,7 @@ private fun StreamAutoPlaySourceDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.settings_playback_source_scope),
+                    text = "Source Scope",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
@@ -1468,7 +1455,7 @@ private fun StreamAutoPlaySourceDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    options.forEach { (source, titleRes, descriptionRes) ->
+                    options.forEach { (source, title, description) ->
                         val isSelected = source == selectedSource
                         val containerColor = if (isSelected) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
@@ -1491,13 +1478,13 @@ private fun StreamAutoPlaySourceDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = stringResource(titleRes),
+                                        text = title,
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface,
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = stringResource(descriptionRes),
+                                        text = description,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -1521,7 +1508,7 @@ private fun StreamAutoPlaySourceDialog(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stringResource(Res.string.settings_playback_dialog_close),
+                    text = "Tap outside to close",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1602,7 +1589,7 @@ private fun StreamAutoPlayProviderSelectionDialog(
 
                 if (items.isEmpty()) {
                     Text(
-                        text = stringResource(Res.string.settings_playback_no_items_available),
+                        text = "No items available",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1661,7 +1648,7 @@ private fun StreamAutoPlayProviderSelectionDialog(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stringResource(Res.string.settings_playback_dialog_save_close),
+                    text = "Tap outside to save & close",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1680,22 +1667,23 @@ private fun StreamAutoPlayRegexDialog(
     var regex by remember(initialRegex) { mutableStateOf(initialRegex) }
     var regexError by remember { mutableStateOf<String?>(null) }
 
-    val invalidRegexPattern = stringResource(Res.string.settings_playback_invalid_regex_pattern)
-    val presets = listOf(
-        stringResource(Res.string.settings_playback_regex_preset_any_1080p) to "(2160p|4k|1080p)",
-        stringResource(Res.string.settings_playback_regex_preset_quality_4k_remux) to "(2160p|4k|remux)",
-        stringResource(Res.string.settings_playback_regex_preset_quality_1080p_standard) to "(1080p|full\\s*hd)",
-        stringResource(Res.string.settings_playback_regex_preset_quality_720p_smaller) to "(720p|webrip|web-dl)",
-        stringResource(Res.string.settings_playback_regex_preset_web_sources) to "(web[-\\s]?dl|webrip)",
-        stringResource(Res.string.settings_playback_regex_preset_bluray_quality) to "(bluray|b[dr]rip|remux)",
-        stringResource(Res.string.settings_playback_regex_preset_hevc_x265) to "(hevc|x265|h\\.265)",
-        stringResource(Res.string.settings_playback_regex_preset_avc_x264) to "(x264|h\\.264|avc)",
-        stringResource(Res.string.settings_playback_regex_preset_hdr_dolby_vision) to "(hdr|hdr10\\+?|dv|dolby\\s*vision)",
-        stringResource(Res.string.settings_playback_regex_preset_dolby_atmos_dts) to "(atmos|truehd|dts[-\\s]?hd|dtsx?)",
-        stringResource(Res.string.settings_playback_regex_preset_english) to "(\\beng\\b|english)",
-        stringResource(Res.string.settings_playback_regex_preset_no_cam_ts) to "^(?!.*\\b(cam|hdcam|ts|telesync)\\b).*$",
-        stringResource(Res.string.settings_playback_regex_preset_no_remux_hdr) to "(?is)^(?!.*\\b(hdr|hdr10|dv|dolby|vision|hevc|remux|2160p)\\b).+$",
-    )
+    val presets = remember {
+        listOf(
+            "Any 1080p+" to "(2160p|4k|1080p)",
+            "4K / Remux" to "(2160p|4k|remux)",
+            "1080p Standard" to "(1080p|full\\s*hd)",
+            "720p / Smaller" to "(720p|webrip|web-dl)",
+            "WEB Sources" to "(web[-\\s]?dl|webrip)",
+            "BluRay Quality" to "(bluray|b[dr]rip|remux)",
+            "HEVC / x265" to "(hevc|x265|h\\.265)",
+            "AVC / x264" to "(x264|h\\.264|avc)",
+            "HDR / Dolby Vision" to "(hdr|hdr10\\+?|dv|dolby\\s*vision)",
+            "Dolby Atmos / DTS" to "(atmos|truehd|dts[-\\s]?hd|dtsx?)",
+            "English" to "(\\beng\\b|english)",
+            "No CAM/TS" to "^(?!.*\\b(cam|hdcam|ts|telesync)\\b).*$",
+            "No REMUX/HDR" to "(?is)^(?!.*\\b(hdr|hdr10|dv|dolby|vision|hevc|remux|2160p)\\b).+$",
+        )
+    }
 
     BasicAlertDialog(
         onDismissRequest = onDismiss,
@@ -1712,20 +1700,20 @@ private fun StreamAutoPlayRegexDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.settings_playback_regex_pattern),
+                    text = "Regex Pattern",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
                 )
 
                 Text(
-                    text = stringResource(Res.string.settings_playback_regex_matches_against),
+                    text = "Matches against stream name, label, description, addon, and URL.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Text(
-                    text = stringResource(Res.string.settings_playback_presets),
+                    text = "Presets",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1784,7 +1772,7 @@ private fun StreamAutoPlayRegexDialog(
                         decorationBox = { innerTextField ->
                             if (regex.isBlank()) {
                                 Text(
-                                    text = stringResource(Res.string.settings_playback_regex_placeholder),
+                                    text = "4K|2160p|Remux",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                 )
@@ -1808,26 +1796,26 @@ private fun StreamAutoPlayRegexDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text(stringResource(Res.string.action_cancel))
+                        Text("Cancel")
                     }
                     TextButton(onClick = {
                         regex = ""
                         regexError = null
                     }) {
-                        Text(stringResource(Res.string.action_clear))
+                        Text("Clear")
                     }
                     TextButton(onClick = {
                         val value = regex.trim()
                         if (value.isNotEmpty()) {
                             val valid = runCatching { Regex(value, RegexOption.IGNORE_CASE) }.isSuccess
                             if (!valid) {
-                                regexError = invalidRegexPattern
+                                regexError = "Invalid regex pattern"
                                 return@TextButton
                             }
                         }
                         onSave(value)
                     }) {
-                        Text(stringResource(Res.string.action_save))
+                        Text("Save")
                     }
                 }
             }
@@ -1855,13 +1843,13 @@ private fun AnimeSkipClientIdDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.settings_playback_anime_skip_client_id),
+                    text = "AnimeSkip Client ID",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = stringResource(Res.string.settings_playback_anime_skip_client_id_description),
+                    text = "Enter your AnimeSkip API client ID. Get one at anime-skip.com.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1887,8 +1875,8 @@ private fun AnimeSkipClientIdDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss) { Text(stringResource(Res.string.action_cancel)) }
-                    TextButton(onClick = { onSave(value.trim()) }) { Text(stringResource(Res.string.action_save)) }
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = { onSave(value.trim()) }) { Text("Save") }
                 }
             }
         }
@@ -1915,7 +1903,7 @@ private fun NextEpisodeThresholdModeDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.settings_playback_threshold_mode),
+                    text = "Threshold Mode",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
@@ -1928,6 +1916,11 @@ private fun NextEpisodeThresholdModeDialog(
                     } else {
                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                     }
+                    val label = when (mode) {
+                        com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.PERCENTAGE -> "Percentage"
+                        com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.MINUTES_BEFORE_END -> "Minutes Before End"
+                    }
+
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1942,7 +1935,7 @@ private fun NextEpisodeThresholdModeDialog(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = stringResource(mode.labelRes),
+                                text = label,
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f),
@@ -1965,7 +1958,7 @@ private fun NextEpisodeThresholdModeDialog(
 
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stringResource(Res.string.settings_playback_dialog_close),
+                    text = "Tap outside to close",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1973,48 +1966,3 @@ private fun NextEpisodeThresholdModeDialog(
         }
     }
 }
-
-private fun decoderPriorityRes(priority: Int): StringResource = when (priority) {
-    0 -> Res.string.settings_playback_decoder_device_only
-    1 -> Res.string.settings_playback_decoder_prefer_device
-    2 -> Res.string.settings_playback_decoder_prefer_app
-    else -> Res.string.settings_playback_decoder_prefer_device
-}
-
-@Composable
-private fun decoderPriorityLabel(priority: Int): String = stringResource(decoderPriorityRes(priority))
-
-private fun StreamAutoPlaySource.labelRes(pluginsEnabled: Boolean): StringResource = when (this) {
-    StreamAutoPlaySource.ALL_SOURCES ->
-        if (pluginsEnabled) Res.string.settings_playback_source_scope_all_sources
-        else Res.string.settings_playback_source_scope_all_addons
-    StreamAutoPlaySource.INSTALLED_ADDONS_ONLY -> Res.string.settings_playback_source_scope_installed_addons_only
-    StreamAutoPlaySource.ENABLED_PLUGINS_ONLY -> Res.string.settings_playback_source_scope_enabled_plugins_only
-}
-
-private val StreamAutoPlayMode.labelRes: StringResource
-    get() = when (this) {
-        StreamAutoPlayMode.MANUAL -> Res.string.settings_playback_stream_selection_mode_manual
-        StreamAutoPlayMode.FIRST_STREAM -> Res.string.settings_playback_stream_selection_mode_first_stream
-        StreamAutoPlayMode.REGEX_MATCH -> Res.string.settings_playback_stream_selection_mode_regex
-    }
-
-private val com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.labelRes: StringResource
-    get() = when (this) {
-        com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.PERCENTAGE ->
-            Res.string.settings_playback_threshold_mode_percentage
-        com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.MINUTES_BEFORE_END ->
-            Res.string.settings_playback_threshold_mode_minutes_before_end
-    }
-
-private fun libassRenderTypeRes(renderType: String): StringResource = when (renderType) {
-    "OVERLAY_OPEN_GL" -> Res.string.settings_playback_render_type_overlay_opengl
-    "OVERLAY_CANVAS" -> Res.string.settings_playback_render_type_overlay_canvas
-    "EFFECTS_OPEN_GL" -> Res.string.settings_playback_render_type_effects_opengl
-    "EFFECTS_CANVAS" -> Res.string.settings_playback_render_type_effects_canvas
-    "CUES" -> Res.string.settings_playback_render_type_cues
-    else -> Res.string.settings_playback_render_type_cues
-}
-
-@Composable
-private fun libassRenderTypeLabel(renderType: String): String = stringResource(libassRenderTypeRes(renderType))

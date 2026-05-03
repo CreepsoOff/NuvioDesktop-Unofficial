@@ -1,12 +1,7 @@
 package com.nuvio.app.features.home
 
-import com.nuvio.app.core.i18n.localizedMediaTypeLabel
 import com.nuvio.app.features.addons.ManagedAddon
 import com.nuvio.app.features.catalog.supportsPagination
-import kotlinx.coroutines.runBlocking
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.home_catalog_default_title
-import org.jetbrains.compose.resources.getString
 
 data class HomeCatalogDefinition(
     val key: String,
@@ -28,13 +23,7 @@ fun buildHomeCatalogDefinitions(addons: List<ManagedAddon>): List<HomeCatalogDef
             .map { catalog ->
                 HomeCatalogDefinition(
                     key = "${manifest.id}:${catalog.type}:${catalog.id}",
-                    defaultTitle = runBlocking {
-                        getString(
-                            Res.string.home_catalog_default_title,
-                            catalog.name,
-                            localizedMediaTypeLabel(catalog.type),
-                        )
-                    },
+                    defaultTitle = "${catalog.name} - ${catalog.type.displayLabel()}",
                     addonName = addon.displayTitle,
                     manifestUrl = addon.manifestUrl,
                     type = catalog.type,
@@ -44,4 +33,7 @@ fun buildHomeCatalogDefinitions(addons: List<ManagedAddon>): List<HomeCatalogDef
             }
     }.distinctBy(HomeCatalogDefinition::key)
 
-internal fun String.displayLabel(): String = localizedMediaTypeLabel(this)
+internal fun String.displayLabel(): String =
+    replaceFirstChar { char ->
+        if (char.isLowerCase()) char.titlecase() else char.toString()
+    }

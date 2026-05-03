@@ -24,12 +24,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
-import kotlin.concurrent.Volatile
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.getString
 import kotlinx.serialization.json.Json
 
 object EpisodeReleaseNotificationsRepository {
@@ -47,10 +44,8 @@ object EpisodeReleaseNotificationsRepository {
     private val _uiState = MutableStateFlow(EpisodeReleaseNotificationsUiState())
     val uiState: StateFlow<EpisodeReleaseNotificationsUiState> = _uiState.asStateFlow()
 
-    @Volatile
     private var hasLoaded = false
-    @Volatile
-    private var trackedShowsByKey: Map<String, TrackedFollowedShow> = emptyMap()
+    private var trackedShowsByKey: MutableMap<String, TrackedFollowedShow> = mutableMapOf()
 
     init {
         scope.launch {
@@ -86,7 +81,7 @@ object EpisodeReleaseNotificationsRepository {
 
     fun clearLocalState() {
         hasLoaded = false
-        trackedShowsByKey = emptyMap()
+        trackedShowsByKey.clear()
         _uiState.value = EpisodeReleaseNotificationsUiState()
         scope.launch {
             runCatching { EpisodeReleaseNotificationPlatform.clearScheduledEpisodeReleaseNotifications() }
@@ -151,7 +146,7 @@ object EpisodeReleaseNotificationsRepository {
                     permissionGranted = false,
                     scheduledCount = 0,
                     statusMessage = null,
-                    errorMessage = getString(Res.string.settings_notifications_permission_disabled),
+                    errorMessage = "Notifications permission is disabled for Nuvio.",
                 )
                 persist()
                 return@launch
@@ -177,7 +172,7 @@ object EpisodeReleaseNotificationsRepository {
                 _uiState.value = _uiState.value.copy(
                     isSendingTest = false,
                     statusMessage = null,
-                    errorMessage = getString(Res.string.settings_notifications_test_requires_saved_show),
+                    errorMessage = "Save a show to your library first to test a deeplink notification.",
                 )
                 return@launch
             }
@@ -199,7 +194,7 @@ object EpisodeReleaseNotificationsRepository {
                     isSendingTest = false,
                     permissionGranted = false,
                     statusMessage = null,
-                    errorMessage = getString(Res.string.settings_notifications_permission_disabled),
+                    errorMessage = "Notifications permission is disabled for Nuvio.",
                 )
                 return@launch
             }
@@ -207,7 +202,7 @@ object EpisodeReleaseNotificationsRepository {
             val request = EpisodeReleaseNotificationRequest(
                 requestId = "episode-release-test-${ProfileRepository.activeProfileId}-${TraktPlatformClock.nowEpochMs()}",
                 notificationTitle = target.name,
-                notificationBody = getString(Res.string.notifications_test_preview_body),
+                notificationBody = "Preview episode release alert.",
                 releaseDateIso = CurrentDateProvider.todayIsoDate(),
                 deepLinkUrl = buildMetaDeepLinkUrl(type = target.type, id = target.id),
                 backdropUrl = target.banner ?: target.poster,
@@ -221,7 +216,7 @@ object EpisodeReleaseNotificationsRepository {
                 _uiState.value = _uiState.value.copy(
                     isSendingTest = false,
                     permissionGranted = true,
-                    statusMessage = getString(Res.string.notifications_test_sent_for, target.name),
+                    statusMessage = "Test notification sent for ${target.name}.",
                     errorMessage = null,
                 )
             }.onFailure {
@@ -229,7 +224,7 @@ object EpisodeReleaseNotificationsRepository {
                     isSendingTest = false,
                     permissionGranted = true,
                     statusMessage = null,
-                    errorMessage = getString(Res.string.notifications_test_send_failed),
+                    errorMessage = "Failed to send a test notification.",
                 )
             }
         }
@@ -244,6 +239,7 @@ object EpisodeReleaseNotificationsRepository {
 
     private fun loadFromDisk() {
         hasLoaded = true
+        trackedShowsByKey.clear()
 
         val payload = EpisodeReleaseNotificationsStorage.loadPayload().orEmpty().trim()
         val stored = payload.takeIf { it.isNotEmpty() }
@@ -255,11 +251,11 @@ object EpisodeReleaseNotificationsRepository {
                 }.getOrNull()
             }
 
-        trackedShowsByKey = buildMap {
-            stored?.followedShows.orEmpty().forEach { trackedShow ->
-                put(buildTrackedShowKey(trackedShow.contentType, trackedShow.contentId), trackedShow)
+        stored?.followedShows
+            .orEmpty()
+            .forEach { trackedShow ->
+                trackedShowsByKey[buildTrackedShowKey(trackedShow.contentType, trackedShow.contentId)] = trackedShow
             }
-        }
 
         _uiState.value = EpisodeReleaseNotificationsUiState(
             isEnabled = stored?.enabled ?: false,
@@ -322,7 +318,7 @@ object EpisodeReleaseNotificationsRepository {
 
         val changed = nextTrackedShows != trackedShowsByKey
         if (changed) {
-            trackedShowsByKey = nextTrackedShows.toMap()
+            trackedShowsByKey = nextTrackedShows.toMutableMap()
         }
         updateTestTargetState()
         return changed

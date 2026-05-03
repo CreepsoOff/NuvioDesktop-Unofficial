@@ -61,7 +61,7 @@ import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.network.NetworkStatusRepository
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.TraktListPickerDialog
-import com.nuvio.app.core.ui.nuvioSafeBottomPadding
+import com.nuvio.app.core.ui.nuvioPlatformExtraBottomPadding
 import com.nuvio.app.features.details.components.DetailActionButtons
 import com.nuvio.app.features.details.components.CommentDetailSheet
 import com.nuvio.app.features.details.components.DetailAdditionalInfoSection
@@ -100,9 +100,6 @@ import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesRepositor
 import com.nuvio.app.features.watching.application.WatchingActions
 import com.nuvio.app.features.watching.application.WatchingState
 import kotlinx.coroutines.launch
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.getString
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -189,7 +186,7 @@ fun MetaDetailsScreen(
             commentsCurrentPage = result.currentPage
             commentsPageCount = result.pageCount
         } catch (e: Exception) {
-            commentsError = e.message ?: getString(Res.string.details_comments_load_failed)
+            commentsError = e.message ?: "Failed to load comments"
         }
         isCommentsLoading = false
     }
@@ -245,14 +242,14 @@ fun MetaDetailsScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = stringResource(Res.string.details_failed_to_load),
+                        text = "Failed to load",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onBackground,
                     )
                     Text(
                         text = when (networkStatusUiState.condition) {
-                            NetworkCondition.NoInternet -> stringResource(Res.string.details_check_connection)
-                            NetworkCondition.ServersUnreachable -> stringResource(Res.string.details_servers_unreachable)
+                            NetworkCondition.NoInternet -> "Check your Wi-Fi or mobile data connection and try again."
+                            NetworkCondition.ServersUnreachable -> "Your device is online, but Nuvio could not reach required servers."
                             else -> uiState.errorMessage.orEmpty()
                         },
                         style = MaterialTheme.typography.bodyMedium,
@@ -265,7 +262,7 @@ fun MetaDetailsScreen(
                             MetaDetailsRepository.load(type, id)
                         },
                     ) {
-                        Text(stringResource(Res.string.action_retry))
+                        Text("Retry")
                     }
                 }
             }
@@ -303,7 +300,7 @@ fun MetaDetailsScreen(
                                         tab.key to (snapshot[tab.key] == true)
                                     }
                                 }.onFailure { error ->
-                                    pickerError = error.message ?: getString(Res.string.trakt_lists_load_failed)
+                                    pickerError = error.message ?: "Failed to load Trakt lists"
                                 }
                                 pickerPending = false
                             }
@@ -397,7 +394,7 @@ fun MetaDetailsScreen(
                                 }
                                 trailerPlaybackSource = resolvedSource
                                 trailerErrorMessage = if (resolvedSource == null) {
-                                    getString(Res.string.trailer_no_playable_stream)
+                                    "No playable trailer stream found."
                                 } else {
                                     null
                                 }
@@ -406,15 +403,13 @@ fun MetaDetailsScreen(
                         }
                     }
                 }
-                val playText = stringResource(Res.string.action_play)
-                val resumeText = stringResource(Res.string.action_resume)
-                val playButtonLabel = remember(movieProgress, seriesAction, meta.type, hasEpisodes, playText, resumeText) {
+                val playButtonLabel = remember(movieProgress, seriesAction, meta.type, hasEpisodes) {
                     when {
                         (meta.type == "series" || hasEpisodes) && seriesAction != null ->
                             seriesAction.label
                         meta.type != "series" && !hasEpisodes && movieProgress != null ->
-                            resumeText
-                        else -> playText
+                            "Resume"
+                        else -> "Play"
                     }
                 }
                 val onPrimaryPlayClick: () -> Unit = {
@@ -585,6 +580,7 @@ fun MetaDetailsScreen(
 
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     val isTablet = maxWidth >= 720.dp
+                    val viewportHeight = maxHeight
                     val contentHorizontalPadding = if (isTablet) 32.dp else 18.dp
                     val contentMaxWidth = detailTabletContentMaxWidth(maxWidth, isTablet)
                     val cinematicEnabled = metaScreenSettingsUiState.cinematicBackground
@@ -617,6 +613,7 @@ fun MetaDetailsScreen(
                             DetailHero(
                                 meta = meta,
                                 isTablet = isTablet,
+                                viewportHeight = viewportHeight,
                                 contentMaxWidth = contentMaxWidth,
                                 scrollOffset = scrollState.value,
                                 onHeightChanged = { heroHeightPx = it },
@@ -641,7 +638,6 @@ fun MetaDetailsScreen(
                                     onSaveClick = toggleSaved,
                                     showManualPlayOption = showManualPlayOption,
                                     preferredEpisodeSeasonNumber = seriesAction?.seasonNumber,
-                                    preferredEpisodeNumber = seriesAction?.episodeNumber,
                                     hasProductionSection = hasProductionSection,
                                     hasTrailersSection = hasTrailersSection,
                                     hasEpisodes = hasEpisodes,
@@ -665,7 +661,7 @@ fun MetaDetailsScreen(
                                                 commentsCurrentPage = result.currentPage
                                                 commentsPageCount = result.pageCount
                                             } catch (e: Exception) {
-                                                commentsError = e.message ?: getString(Res.string.details_comments_load_failed)
+                                                commentsError = e.message ?: "Failed to load comments"
                                             }
                                             isCommentsLoading = false
                                         }
@@ -698,7 +694,7 @@ fun MetaDetailsScreen(
                                     animatedVisibilityScope = animatedVisibilityScope,
                                 )
 
-                                Spacer(modifier = Modifier.height(nuvioSafeBottomPadding(32.dp)))
+                                Spacer(modifier = Modifier.height(32.dp + nuvioPlatformExtraBottomPadding))
                             }
                         }
 
@@ -785,9 +781,7 @@ fun MetaDetailsScreen(
                             }
                             EpisodeWatchedActionSheet(
                                 episode = selectedEpisode,
-                                seasonLabel = selectedEpisode.season?.let {
-                                    stringResource(Res.string.episodes_season, it)
-                                } ?: stringResource(Res.string.episodes_specials),
+                                seasonLabel = selectedEpisode.season?.let { "Season $it" } ?: "Specials",
                                 isEpisodeWatched = isSelectedEpisodeWatched,
                                 canMarkPreviousEpisodes = previousEpisodes.isNotEmpty(),
                                 arePreviousEpisodesWatched = arePreviousEpisodesWatched,
@@ -872,7 +866,7 @@ fun MetaDetailsScreen(
                                     }.onSuccess {
                                         showLibraryListPicker = false
                                     }.onFailure { error ->
-                                        pickerError = error.message ?: getString(Res.string.trakt_lists_update_failed)
+                                        pickerError = error.message ?: "Failed to update Trakt lists"
                                     }
                                     pickerPending = false
                                 }
@@ -948,7 +942,6 @@ private fun ConfiguredMetaSections(
     onSaveClick: () -> Unit,
     showManualPlayOption: Boolean,
     preferredEpisodeSeasonNumber: Int?,
-    preferredEpisodeNumber: Int?,
     hasProductionSection: Boolean,
     hasTrailersSection: Boolean,
     hasEpisodes: Boolean,
@@ -1000,11 +993,7 @@ private fun ConfiguredMetaSections(
             MetaScreenSectionKey.ACTIONS -> {
                 DetailActionButtons(
                     playLabel = playButtonLabel,
-                    saveLabel = if (isSaved) {
-                        stringResource(Res.string.action_saved)
-                    } else {
-                        stringResource(Res.string.action_save)
-                    },
+                    saveLabel = if (isSaved) "Saved" else "Save",
                     isSaved = isSaved,
                     isTablet = isTablet,
                     onPlayClick = onPrimaryPlayClick,
@@ -1055,7 +1044,6 @@ private fun ConfiguredMetaSections(
                         meta = meta,
                         showHeader = showHeader,
                         preferredSeasonNumber = preferredEpisodeSeasonNumber,
-                        preferredEpisodeNumber = preferredEpisodeNumber,
                         episodeCardStyle = settings.episodeCardStyle,
                         progressByVideoId = progressByVideoId,
                         watchedKeys = watchedKeys,
@@ -1083,7 +1071,7 @@ private fun ConfiguredMetaSections(
             MetaScreenSectionKey.MORE_LIKE_THIS -> {
                 if (hasMoreLikeThisSection) {
                     DetailPosterRailSection(
-                        title = stringResource(Res.string.details_more_like_this),
+                        title = "More Like This",
                         items = meta.moreLikeThis,
                         watchedKeys = watchedKeys,
                         showHeader = showHeader,

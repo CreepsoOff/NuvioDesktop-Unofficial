@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.httpGetTextWithHeaders
 import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.watchprogress.WatchProgressCompletionPercentThreshold
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import kotlinx.coroutines.CancellationException
@@ -23,13 +24,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.getString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
 private const val BASE_URL = "https://api.trakt.tv"
-private const val TRAKT_COMPLETION_PERCENT_THRESHOLD = 80f
 private const val HISTORY_LIMIT = 250
 private const val METADATA_FETCH_TIMEOUT_MS = 3_500L
 private const val METADATA_FETCH_CONCURRENCY = 5
@@ -95,10 +93,7 @@ object TraktProgressRepository {
         }.getOrNull()
 
         if (playbackEntries == null) {
-            _uiState.value = _uiState.value.copy(
-                isLoading = false,
-                errorMessage = getString(Res.string.trakt_progress_load_failed),
-            )
+            _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = "Failed to load Trakt progress")
             return
         }
 
@@ -434,31 +429,9 @@ object TraktProgressRepository {
 
         entries.map { entry ->
             val meta = metadataByContent[entry.parentMetaType to entry.parentMetaId] ?: return@map entry
-            var resolvedSeason = entry.seasonNumber
-            var resolvedEpisode = entry.episodeNumber
-
-            val episode = if (resolvedSeason != null && resolvedEpisode != null) {
-                // Try direct match first
-                val directMatch = meta.videos.firstOrNull { video ->
-                    video.season == resolvedSeason && video.episode == resolvedEpisode
-                }
-                if (directMatch != null) {
-                    directMatch
-                } else {
-                    // Fallback: reverse-remap from Trakt numbering to addon numbering
-                    val addonSeasons = meta.videos.mapTo(mutableSetOf()) { it.season }
-                    if (resolvedSeason == 1 && addonSeasons.size > 1 && resolvedEpisode!! > 0) {
-                        val sorted = meta.videos
-                            .filter { it.season != null && it.episode != null }
-                            .sortedWith(compareBy({ it.season }, { it.episode }))
-                        val globalIndex = resolvedEpisode!! - 1
-                        if (globalIndex in sorted.indices) {
-                            val remapped = sorted[globalIndex]
-                            resolvedSeason = remapped.season
-                            resolvedEpisode = remapped.episode
-                            remapped
-                        } else null
-                    } else null
+            val episode = if (entry.seasonNumber != null && entry.episodeNumber != null) {
+                meta.videos.firstOrNull { video ->
+                    video.season == entry.seasonNumber && video.episode == entry.episodeNumber
                 }
             } else {
                 null
@@ -469,8 +442,6 @@ object TraktProgressRepository {
                 logo = entry.logo ?: meta.logo,
                 poster = entry.poster ?: meta.poster,
                 background = entry.background ?: meta.background,
-                seasonNumber = resolvedSeason ?: entry.seasonNumber,
-                episodeNumber = resolvedEpisode ?: entry.episodeNumber,
                 episodeTitle = entry.episodeTitle ?: episode?.title,
                 episodeThumbnail = entry.episodeThumbnail ?: episode?.thumbnail,
                 pauseDescription = entry.pauseDescription
@@ -497,7 +468,7 @@ object TraktProgressRepository {
             lastPositionMs = 0L,
             durationMs = 0L,
             lastUpdatedEpochMs = rankedTimestamp(item.pausedAt, fallbackIndex),
-            isCompleted = progressPercent >= TRAKT_COMPLETION_PERCENT_THRESHOLD,
+            isCompleted = progressPercent >= WatchProgressCompletionPercentThreshold,
             progressPercent = progressPercent,
         ).normalizedCompletion()
     }
@@ -531,7 +502,7 @@ object TraktProgressRepository {
             lastPositionMs = 0L,
             durationMs = 0L,
             lastUpdatedEpochMs = rankedTimestamp(item.pausedAt, fallbackIndex),
-            isCompleted = progressPercent >= TRAKT_COMPLETION_PERCENT_THRESHOLD,
+            isCompleted = progressPercent >= WatchProgressCompletionPercentThreshold,
             progressPercent = progressPercent,
         ).normalizedCompletion()
     }

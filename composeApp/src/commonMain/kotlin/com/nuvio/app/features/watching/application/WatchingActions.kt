@@ -4,7 +4,6 @@ import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.home.MetaPreview
-import com.nuvio.app.features.watched.WatchedItem
 import com.nuvio.app.features.watched.WatchedRepository
 import com.nuvio.app.features.watched.episodePlaybackId
 import com.nuvio.app.features.watched.releasedPlayableEpisodes
@@ -107,20 +106,7 @@ object WatchingActions {
     }
 
     fun onProgressEntryUpdated(entry: WatchProgressEntry) {
-        if (!entry.isCompleted) return
-
-        val watchedItem = WatchedItem(
-            id = entry.parentMetaId,
-            type = entry.parentMetaType,
-            name = entry.title,
-            poster = entry.poster,
-            season = entry.seasonNumber,
-            episode = entry.episodeNumber,
-            markedAtEpochMs = entry.lastUpdatedEpochMs,
-        )
-        WatchedRepository.markWatched(watchedItem)
-
-        if (!entry.isEpisode) return
+        if (!entry.isCompleted || !entry.isEpisode) return
         actionScope.launch {
             val meta = runCatching {
                 MetaDetailsRepository.fetch(

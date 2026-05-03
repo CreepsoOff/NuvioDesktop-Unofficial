@@ -1,7 +1,6 @@
 package com.nuvio.app.features.search
 
 import co.touchlab.kermit.Logger
-import com.nuvio.app.core.i18n.localizedMediaTypeLabel
 import com.nuvio.app.features.addons.AddonCatalog
 import com.nuvio.app.features.addons.AddonExtraProperty
 import com.nuvio.app.features.addons.ManagedAddon
@@ -22,8 +21,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.getString
 
 object SearchRepository {
     private val log = Logger.withTag("SearchRepository")
@@ -316,7 +313,7 @@ object SearchRepository {
 
         return HomeCatalogSection(
             key = "${manifest.id}:search:$type:$catalogId:${query.lowercase()}",
-            title = getString(Res.string.discover_catalog_context, catalogName, type.displayLabel()),
+            title = "$catalogName - ${type.displayLabel()}",
             subtitle = addon.displayTitle,
             addonName = addon.displayTitle,
             type = type,
@@ -413,7 +410,7 @@ object SearchRepository {
                         isLoading = false,
                         nextSkip = null,
                         emptyStateReason = DiscoverEmptyStateReason.RequestFailed,
-                        errorMessage = error.message ?: getString(Res.string.discover_empty_load_failed_message),
+                        errorMessage = error.message ?: "Unable to load discover items.",
                     )
                 },
             )
@@ -489,7 +486,9 @@ private fun List<MetaPreview>.previewNames(limit: Int = 5): String {
 }
 
 private fun String.displayLabel(): String =
-    localizedMediaTypeLabel(this)
+    replaceFirstChar { char ->
+        if (char.isLowerCase()) char.titlecase() else char.toString()
+    }
 
 private fun String.typeSortKey(): String =
     when (lowercase()) {

@@ -52,9 +52,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.floating_prompt_continue_where_left_off
-import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToInt
 
 private const val AutoDismissDelayMs = 15_000L
@@ -205,7 +202,7 @@ fun NuvioFloatingPrompt(
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = stringResource(Res.string.floating_prompt_continue_where_left_off),
+                                text = "Continue where you left off",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

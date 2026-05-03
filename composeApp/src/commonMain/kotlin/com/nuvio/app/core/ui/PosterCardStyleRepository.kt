@@ -8,9 +8,18 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-internal const val DefaultPosterCardWidthDp = 126
-internal const val DefaultPosterCardHeightDp = 189
+internal const val MobilePosterCardWidthDp = 126
+internal const val MobilePosterCardHeightDp = 189
 internal const val DefaultPosterCardCornerRadiusDp = 12
+
+internal expect val DefaultPosterCardWidthDp: Int
+internal expect val DefaultPosterCardHeightDp: Int
+internal expect val PosterCardWidthOptions: List<PosterCardWidthOption>
+
+internal data class PosterCardWidthOption(
+    val label: String,
+    val value: Int,
+)
 
 @Serializable
 private data class StoredPosterCardStylePreferences(

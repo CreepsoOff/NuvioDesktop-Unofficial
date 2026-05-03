@@ -20,7 +20,8 @@ import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
-import com.nuvio.app.features.details.nextReleasedEpisodeAfter
+import com.nuvio.app.features.details.filterUnavailableFutureSeasons
+import com.nuvio.app.features.details.sortedPlayableEpisodes
 import com.nuvio.app.features.home.components.HomeCatalogRowSection
 import com.nuvio.app.features.home.components.HomeContinueWatchingSection
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
@@ -40,14 +41,14 @@ import com.nuvio.app.features.watchprogress.nextUpDismissKey
 import com.nuvio.app.features.watchprogress.WatchProgressClock
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
-import com.nuvio.app.features.watchprogress.buildContinueWatchingEpisodeSubtitle
 import com.nuvio.app.features.watchprogress.toContinueWatchingItem
 import com.nuvio.app.features.watchprogress.toUpNextContinueWatchingItem
 import com.nuvio.app.features.watching.application.WatchingState
 import com.nuvio.app.features.watching.domain.WatchingContentRef
+import com.nuvio.app.features.watching.domain.buildPlaybackVideoId
 import com.nuvio.app.features.collection.CollectionRepository
-import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.home.components.HomeCollectionRowSection
+import com.nuvio.app.features.watching.domain.isReleasedBy
 import com.nuvio.app.features.watchprogress.ContinueWatchingSectionStyle
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -56,8 +57,6 @@ import kotlinx.coroutines.sync.withPermit
 import com.nuvio.app.features.home.components.ContinueWatchingLayout
 import com.nuvio.app.features.home.components.homeSectionHorizontalPaddingForWidth
 import com.nuvio.app.features.home.components.rememberContinueWatchingLayout
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun HomeScreen(
@@ -153,12 +152,9 @@ fun HomeScreen(
             latestCompletedBySeries = latestCompletedBySeries,
         )
     }
-    val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
-    val activeProfileId = profileState.activeProfile?.profileIndex ?: 1
+    var nextUpItemsBySeries by remember { mutableStateOf<Map<String, Pair<Long, ContinueWatchingItem>>>(emptyMap()) }
 
-    var nextUpItemsBySeries by remember(activeProfileId) { mutableStateOf<Map<String, Pair<Long, ContinueWatchingItem>>>(emptyMap()) }
-
-    val cachedSnapshots = remember(activeProfileId) { ContinueWatchingEnrichmentCache.getSnapshots() }
+    val cachedSnapshots = remember { ContinueWatchingEnrichmentCache.getSnapshots() }
     val cachedNextUpItems = remember(cachedSnapshots.first, continueWatchingPreferences.dismissedNextUpKeys) {
         cachedSnapshots.first.mapNotNull { cached ->
             if (nextUpDismissKey(cached.contentId, cached.seedSeason, cached.seedEpisode) in continueWatchingPreferences.dismissedNextUpKeys) {
@@ -420,8 +416,8 @@ fun HomeScreen(
                     item {
                         HomeEmptyStateCard(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            title = stringResource(Res.string.compose_search_empty_no_active_addons_title),
-                            message = stringResource(Res.string.home_empty_no_active_addons_message),
+                            title = "No active addons",
+                            message = "Install and validate at least one addon before loading catalog rows on Home.",
                         )
                     }
                 }
@@ -460,9 +456,9 @@ fun HomeScreen(
                         } else {
                             HomeEmptyStateCard(
                                 modifier = Modifier.padding(horizontal = 16.dp),
-                                title = stringResource(Res.string.home_empty_no_rows_title),
+                                title = "No home rows available",
                                 message = homeUiState.errorMessage
-                                    ?: stringResource(Res.string.home_empty_no_rows_message),
+                                    ?: "Installed addons do not currently expose board-compatible catalogs without required extras.",
                             )
                         }
                     }
@@ -609,20 +605,64 @@ private fun CompletedSeriesCandidate.toContinueWatchingSeed(meta: com.nuvio.app.
         isCompleted = true,
     )
 
+private fun com.nuvio.app.features.details.MetaDetails.nextReleasedEpisodeAfter(
+    seasonNumber: Int?,
+    episodeNumber: Int?,
+    todayIsoDate: String,
+    showUnairedNextUp: Boolean,
+): com.nuvio.app.features.details.MetaVideo? {
+    val content = WatchingContentRef(type = type, id = id)
+    val watchedVideoId = buildPlaybackVideoId(
+        content = content,
+        seasonNumber = seasonNumber,
+        episodeNumber = episodeNumber,
+    )
+
+    val ordered = sortedPlayableEpisodes()
+        .dropWhile { episode ->
+            buildPlaybackVideoId(
+                content = content,
+                seasonNumber = episode.season,
+                episodeNumber = episode.episode,
+                fallbackVideoId = episode.id,
+            ) != watchedVideoId
+        }
+        .drop(1)
+        .filter { episode -> (episode.season ?: 0) > 0 }
+        .filterUnavailableFutureSeasons(todayIsoDate = todayIsoDate)
+
+    if (showUnairedNextUp) {
+        return ordered.firstOrNull()
+    }
+
+    return ordered.firstOrNull { episode ->
+        isReleasedBy(todayIsoDate = todayIsoDate, releasedDate = episode.released)
+    }
+}
+
 private fun ContinueWatchingItem.shouldDisplayInContinueWatching(): Boolean =
     isNextUp || progressFraction < 0.995f
 
 private fun CachedNextUpItem.toContinueWatchingItem(): ContinueWatchingItem? {
+    val subtitle = buildString {
+        append("Up Next")
+        if (season != null && episode != null) {
+            append(" • S")
+            append(season)
+            append("E")
+            append(episode)
+        }
+        episodeTitle?.takeIf { it.isNotBlank() }?.let {
+            append(" • ")
+            append(it)
+        }
+    }
     return ContinueWatchingItem(
         parentMetaId = contentId,
         parentMetaType = contentType,
         videoId = videoId,
         title = name,
-        subtitle = buildContinueWatchingEpisodeSubtitle(
-            seasonNumber = season,
-            episodeNumber = episode,
-            episodeTitle = episodeTitle,
-        ),
+        subtitle = subtitle,
         imageUrl = episodeThumbnail ?: backdrop ?: poster,
         logo = logo,
         poster = poster,
@@ -643,6 +683,20 @@ private fun CachedNextUpItem.toContinueWatchingItem(): ContinueWatchingItem? {
 }
 
 private fun CachedInProgressItem.toContinueWatchingItem(): ContinueWatchingItem {
+    val subtitle = if (season != null && episode != null) {
+        buildString {
+            append("S")
+            append(season)
+            append("E")
+            append(episode)
+            episodeTitle?.takeIf { it.isNotBlank() }?.let {
+                append(" • ")
+                append(it)
+            }
+        }
+    } else {
+        "Movie"
+    }
     val explicitResumeProgressFraction = progressPercent
         ?.takeIf { duration <= 0L && it > 0f }
         ?.let { (it / 100f).coerceIn(0f, 1f) }
@@ -659,11 +713,7 @@ private fun CachedInProgressItem.toContinueWatchingItem(): ContinueWatchingItem 
         parentMetaType = contentType,
         videoId = videoId,
         title = name,
-        subtitle = buildContinueWatchingEpisodeSubtitle(
-            seasonNumber = season,
-            episodeNumber = episode,
-            episodeTitle = episodeTitle,
-        ),
+        subtitle = subtitle,
         imageUrl = episodeThumbnail ?: backdrop ?: poster,
         logo = logo,
         poster = poster,

@@ -34,13 +34,11 @@ import androidx.compose.ui.draw.clip
 import com.nuvio.app.core.ui.NuvioBottomSheetDivider
 import com.nuvio.app.core.ui.NuvioModalBottomSheet
 import com.nuvio.app.core.ui.dismissNuvioBottomSheet
-import com.nuvio.app.core.ui.nuvioSafeBottomPadding
+import com.nuvio.app.core.ui.nuvioPlatformExtraBottomPadding
 import com.nuvio.app.features.player.PlatformPlayerSurface
 import com.nuvio.app.features.player.PlayerResizeMode
 import com.nuvio.app.features.trailer.TrailerPlaybackSource
 import kotlinx.coroutines.launch
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +55,7 @@ fun TrailerPlayerPopup(
 ) {
     if (!visible) return
 
-    val headerType = trailerType.trim().ifBlank { stringResource(Res.string.detail_tab_trailer) }
+    val headerType = trailerType.trim().ifBlank { "Trailer" }
     val headerSubtitle = buildList {
         if (trailerTitle.isNotBlank() && !trailerTitle.equals(headerType, ignoreCase = true)) {
             add(trailerTitle)
@@ -89,7 +87,7 @@ fun TrailerPlayerPopup(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = nuvioSafeBottomPadding(14.dp)),
+                .padding(bottom = 14.dp + nuvioPlatformExtraBottomPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
@@ -121,7 +119,7 @@ fun TrailerPlayerPopup(
                 IconButton(onClick = dismissSheet) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = stringResource(Res.string.trailer_close),
+                        contentDescription = "Close trailer",
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
@@ -149,7 +147,7 @@ fun TrailerPlayerPopup(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Text(
-                                text = stringResource(Res.string.trailer_unable_to_play),
+                                text = "Unable to play trailer",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -162,7 +160,7 @@ fun TrailerPlayerPopup(
                             )
                             if (onRetry != null) {
                                 TextButton(onClick = onRetry) {
-                                    Text(stringResource(Res.string.action_retry))
+                                    Text("Retry")
                                 }
                             }
                         }

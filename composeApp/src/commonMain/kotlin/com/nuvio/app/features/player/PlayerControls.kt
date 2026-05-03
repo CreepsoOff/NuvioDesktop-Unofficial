@@ -3,11 +3,11 @@ package com.nuvio.app.features.player
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,12 +18,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContent
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Forward10
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.LockOpen
+import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material.icons.rounded.FullscreenExit
 import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SwapHoriz
@@ -32,7 +33,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,8 +52,6 @@ import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.appIconPainter
 import com.nuvio.app.core.ui.nuvioTypeScale
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun PlayerControlsShell(
@@ -67,13 +65,14 @@ internal fun PlayerControlsShell(
     displayedPositionMs: Long,
     metrics: PlayerLayoutMetrics,
     resizeMode: PlayerResizeMode,
-    isLocked: Boolean,
-    onLockToggle: () -> Unit,
+    isFullscreenSupported: Boolean,
+    isFullscreen: Boolean,
     onBack: () -> Unit,
     onTogglePlayback: () -> Unit,
     onSeekBack: () -> Unit,
     onSeekForward: () -> Unit,
     onResizeModeClick: () -> Unit,
+    onFullscreenClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onSubtitleClick: () -> Unit,
     onAudioClick: () -> Unit,
@@ -128,9 +127,10 @@ internal fun PlayerControlsShell(
                 episodeNumber = episodeNumber,
                 episodeTitle = episodeTitle,
                 metrics = metrics,
-                isLocked = isLocked,
-                onLockToggle = onLockToggle,
+                isFullscreenSupported = isFullscreenSupported,
+                isFullscreen = isFullscreen,
                 onBack = onBack,
+                onFullscreenClick = onFullscreenClick,
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .fillMaxWidth()
@@ -185,9 +185,10 @@ private fun PlayerHeader(
     episodeNumber: Int?,
     episodeTitle: String?,
     metrics: PlayerLayoutMetrics,
-    isLocked: Boolean,
-    onLockToggle: () -> Unit,
+    isFullscreenSupported: Boolean,
+    isFullscreen: Boolean,
     onBack: () -> Unit,
+    onFullscreenClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val typeScale = MaterialTheme.nuvioTypeScale
@@ -214,12 +215,7 @@ private fun PlayerHeader(
                 )
                 if (seasonNumber != null && episodeNumber != null && !episodeTitle.isNullOrBlank()) {
                     Text(
-                        text = stringResource(
-                            Res.string.compose_player_episode_title_format,
-                            seasonNumber,
-                            episodeNumber,
-                            episodeTitle,
-                        ),
+                        text = "S${seasonNumber}E${episodeNumber} • $episodeTitle",
                         style = typeScale.bodyMd.copy(
                             fontSize = metrics.episodeInfoSize,
                             lineHeight = metrics.episodeInfoSize * 1.3f,
@@ -258,27 +254,24 @@ private fun PlayerHeader(
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                PlayerHeaderIconButton(
-                    icon = if (isLocked) Icons.Rounded.LockOpen else Icons.Rounded.Lock,
-                    contentDescription = if (isLocked) {
-                        stringResource(Res.string.compose_player_unlock_controls)
-                    } else {
-                        stringResource(Res.string.compose_player_lock_controls)
-                    },
-                    buttonSize = metrics.headerIconSize + 16.dp,
-                    iconSize = metrics.headerIconSize,
-                    onClick = onLockToggle,
-                )
+                if (isFullscreenSupported) {
+                    PlayerHeaderIconButton(
+                        icon = if (isFullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
+                        contentDescription = if (isFullscreen) "Exit fullscreen" else "Enter fullscreen",
+                        metrics = metrics,
+                        onClick = onFullscreenClick,
+                    )
+                }
                 NuvioBackButton(
                     onClick = onBack,
                     containerColor = Color.Black.copy(alpha = 0.35f),
                     contentColor = Color.White,
                     buttonSize = metrics.headerIconSize + 16.dp,
                     iconSize = metrics.headerIconSize,
-                    contentDescription = stringResource(Res.string.compose_player_close),
+                    contentDescription = "Close player",
                 )
             }
         }
@@ -289,13 +282,12 @@ private fun PlayerHeader(
 private fun PlayerHeaderIconButton(
     icon: ImageVector,
     contentDescription: String,
-    buttonSize: androidx.compose.ui.unit.Dp,
-    iconSize: androidx.compose.ui.unit.Dp,
+    metrics: PlayerLayoutMetrics,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
-            .size(buttonSize)
+            .size(metrics.headerIconSize + 16.dp)
             .clip(CircleShape)
             .background(Color.Black.copy(alpha = 0.35f))
             .clickable(onClick = onClick),
@@ -305,7 +297,7 @@ private fun PlayerHeaderIconButton(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = Color.White,
-            modifier = Modifier.size(iconSize),
+            modifier = Modifier.size(metrics.headerIconSize),
         )
     }
 }
@@ -326,7 +318,7 @@ private fun CenterControls(
     ) {
         SideControlButton(
             icon = Icons.Rounded.Replay10,
-            contentDescription = stringResource(Res.string.compose_player_seek_back_10),
+            contentDescription = "Seek backward 10 seconds",
             metrics = metrics,
             onClick = onSeekBack,
         )
@@ -338,7 +330,7 @@ private fun CenterControls(
         )
         SideControlButton(
             icon = Icons.Rounded.Forward10,
-            contentDescription = stringResource(Res.string.compose_player_seek_forward_10),
+            contentDescription = "Seek forward 10 seconds",
             metrics = metrics,
             onClick = onSeekForward,
         )
@@ -395,11 +387,7 @@ private fun PlayPauseControlButton(
         } else {
             Icon(
                 painter = playPausePainter,
-                contentDescription = if (isPlaying) {
-                    stringResource(Res.string.compose_action_pause)
-                } else {
-                    stringResource(Res.string.detail_btn_play)
-                },
+                contentDescription = if (isPlaying) "Pause" else "Play",
                 tint = Color.White,
                 modifier = Modifier.size(metrics.playIconSize),
             )
@@ -464,12 +452,14 @@ private fun ProgressControls(
                 ),
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     PlayerActionPillButton(
-                        label = stringResource(resizeMode.labelRes),
+                        label = resizeMode.label,
                         painter = aspectRatioPainter,
                         onClick = onResizeModeClick,
                     )
@@ -479,129 +469,30 @@ private fun ProgressControls(
                         onClick = onSpeedClick,
                     )
                     PlayerActionPillButton(
-                        label = stringResource(Res.string.compose_player_subs),
+                        label = "Subs",
                         painter = subtitlesPainter,
                         onClick = onSubtitleClick,
                     )
                     PlayerActionPillButton(
-                        label = stringResource(Res.string.compose_player_audio),
+                        label = "Audio",
                         painter = audioPainter,
                         onClick = onAudioClick,
                     )
                     if (onSourcesClick != null) {
                         PlayerActionPillButton(
-                            label = stringResource(Res.string.compose_player_sources),
+                            label = "Sources",
                             icon = Icons.Rounded.SwapHoriz,
                             onClick = onSourcesClick,
                         )
                     }
                     if (onEpisodesClick != null) {
                         PlayerActionPillButton(
-                            label = stringResource(Res.string.compose_player_episodes),
+                            label = "Episodes",
                             icon = Icons.Rounded.VideoLibrary,
                             onClick = onEpisodesClick,
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun LockedPlayerOverlay(
-    playbackSnapshot: PlayerPlaybackSnapshot,
-    displayedPositionMs: Long,
-    metrics: PlayerLayoutMetrics,
-    horizontalSafePadding: androidx.compose.ui.unit.Dp,
-    onUnlock: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val durationMs = playbackSnapshot.durationMs.coerceAtLeast(1L)
-    val sliderColors = SliderDefaults.colors(
-        thumbColor = Color.White,
-        activeTrackColor = Color.White,
-        inactiveTrackColor = Color.White.copy(alpha = 0.28f),
-        disabledThumbColor = Color.White,
-        disabledActiveTrackColor = Color.White,
-        disabledInactiveTrackColor = Color.White.copy(alpha = 0.28f),
-    )
-
-    Box(modifier = modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-                .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.72f),
-                        ),
-                    ),
-                ),
-        )
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(78.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.52f))
-                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
-                    .clickable(onClick = onUnlock),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Lock,
-                    contentDescription = stringResource(Res.string.compose_player_unlock_controls),
-                    tint = Color.White,
-                    modifier = Modifier.size(34.dp),
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = stringResource(Res.string.compose_player_tap_to_unlock),
-                style = MaterialTheme.nuvioTypeScale.bodyMd.copy(fontWeight = FontWeight.SemiBold),
-                color = Color.White.copy(alpha = 0.92f),
-            )
-        }
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = horizontalSafePadding + metrics.horizontalPadding)
-                .padding(bottom = metrics.sliderBottomOffset),
-        ) {
-            Slider(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(metrics.sliderTouchHeight)
-                    .graphicsLayer(scaleY = metrics.sliderScaleY),
-                value = displayedPositionMs.coerceIn(0L, durationMs).toFloat(),
-                onValueChange = {},
-                onValueChangeFinished = {},
-                valueRange = 0f..durationMs.toFloat(),
-                enabled = false,
-                colors = sliderColors,
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp)
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TimePill(text = formatPlaybackTime(displayedPositionMs), fontSize = metrics.timeSize)
-                TimePill(text = formatPlaybackTime(durationMs), fontSize = metrics.timeSize)
             }
         }
     }

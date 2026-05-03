@@ -49,17 +49,6 @@ import com.nuvio.app.core.ui.NuvioActionLabel
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioSectionLabel
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.settings_homescreen_collection_with_addon
-import nuvio.composeapp.generated.resources.settings_homescreen_display_name
-import nuvio.composeapp.generated.resources.settings_homescreen_hero_source
-import nuvio.composeapp.generated.resources.settings_homescreen_hidden
-import nuvio.composeapp.generated.resources.settings_homescreen_not_in_hero
-import nuvio.composeapp.generated.resources.settings_homescreen_pinned
-import nuvio.composeapp.generated.resources.settings_homescreen_pinned_to_top
-import nuvio.composeapp.generated.resources.settings_homescreen_reorder
-import nuvio.composeapp.generated.resources.settings_homescreen_visible
-import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 
 @Composable
@@ -388,37 +377,18 @@ internal fun HomescreenCatalogRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = if (item.isCollection) {
-                        stringResource(Res.string.settings_homescreen_collection_with_addon, item.addonName)
-                    } else {
-                        item.addonName
-                    },
+                    text = if (item.isCollection) "Collection • ${item.addonName}" else item.addonName,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = buildString {
-                        append(
-                            if (item.enabled) {
-                                stringResource(Res.string.settings_homescreen_visible)
-                            } else {
-                                stringResource(Res.string.settings_homescreen_hidden)
-                            },
-                        )
+                        append(if (item.enabled) "Visible" else "Hidden")
                         if (item.isCollection) {
-                            if (item.isPinnedToTop) {
-                                append(" • ")
-                                append(stringResource(Res.string.settings_homescreen_pinned_to_top))
-                            }
+                            if (item.isPinnedToTop) append(" • Pinned to top")
                         } else {
                             append(" • ")
-                            append(
-                                if (item.heroSourceEnabled) {
-                                    stringResource(Res.string.settings_homescreen_hero_source)
-                                } else {
-                                    stringResource(Res.string.settings_homescreen_not_in_hero)
-                                },
-                            )
+                            append(if (item.heroSourceEnabled) "Hero source" else "Not in hero")
                         }
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -445,7 +415,7 @@ internal fun HomescreenCatalogRow(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Lock,
-                            contentDescription = stringResource(Res.string.settings_homescreen_pinned),
+                            contentDescription = "Pinned",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         )
                     }
@@ -465,7 +435,7 @@ internal fun HomescreenCatalogRow(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Menu,
-                            contentDescription = stringResource(Res.string.settings_homescreen_reorder),
+                            contentDescription = "Reorder",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -482,7 +452,7 @@ internal fun HomescreenCatalogRow(
                     onValueChange = onTitleChange,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text(stringResource(Res.string.settings_homescreen_display_name)) },
+                    label = { Text("Display Name") },
                     placeholder = { Text(item.defaultTitle) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),

@@ -12,9 +12,6 @@ object ThemeSettingsRepository {
     private val _amoledEnabled = MutableStateFlow(false)
     val amoledEnabled: StateFlow<Boolean> = _amoledEnabled.asStateFlow()
 
-    private val _selectedAppLanguage = MutableStateFlow(AppLanguage.ENGLISH)
-    val selectedAppLanguage: StateFlow<AppLanguage> = _selectedAppLanguage.asStateFlow()
-
     private var hasLoaded = false
 
     fun ensureLoaded() {
@@ -30,7 +27,6 @@ object ThemeSettingsRepository {
         hasLoaded = false
         _selectedTheme.value = AppTheme.WHITE
         _amoledEnabled.value = false
-        _selectedAppLanguage.value = AppLanguage.ENGLISH
     }
 
     private fun loadFromDisk() {
@@ -47,9 +43,6 @@ object ThemeSettingsRepository {
         }
         _selectedTheme.value = theme
         _amoledEnabled.value = ThemeSettingsStorage.loadAmoledEnabled() ?: false
-        val appLanguage = AppLanguage.fromCode(ThemeSettingsStorage.loadSelectedAppLanguage())
-        ThemeSettingsStorage.applySelectedAppLanguage(appLanguage.code)
-        _selectedAppLanguage.value = appLanguage
     }
 
     fun setTheme(theme: AppTheme) {
@@ -64,13 +57,5 @@ object ThemeSettingsRepository {
         if (_amoledEnabled.value == enabled) return
         _amoledEnabled.value = enabled
         ThemeSettingsStorage.saveAmoledEnabled(enabled)
-    }
-
-    fun setAppLanguage(language: AppLanguage) {
-        ensureLoaded()
-        if (_selectedAppLanguage.value == language) return
-        ThemeSettingsStorage.saveSelectedAppLanguage(language.code)
-        ThemeSettingsStorage.applySelectedAppLanguage(language.code)
-        _selectedAppLanguage.value = language
     }
 }

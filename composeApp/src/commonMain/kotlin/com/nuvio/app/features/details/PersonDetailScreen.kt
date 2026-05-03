@@ -56,7 +56,6 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
-import com.nuvio.app.core.i18n.localizedShortMonthName
 import com.nuvio.app.core.ui.landscapePosterHeightForWidth
 import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
@@ -64,9 +63,6 @@ import com.nuvio.app.features.details.components.DetailPosterRailSection
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.tmdb.TmdbMetadataService
 import com.nuvio.app.features.watchprogress.CurrentDateProvider
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.getString
-import org.jetbrains.compose.resources.stringResource
 
 private sealed interface PersonDetailUiState {
     data object Loading : PersonDetailUiState
@@ -100,7 +96,7 @@ fun PersonDetailScreen(
         uiState = if (detail != null) {
             PersonDetailUiState.Success(detail)
         } else {
-            PersonDetailUiState.Error(getString(Res.string.person_load_failed, personName))
+            PersonDetailUiState.Error("Could not load details for $personName")
         }
     }
 
@@ -145,7 +141,7 @@ fun PersonDetailScreen(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = stringResource(Res.string.action_back),
+                contentDescription = "Back",
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
@@ -272,7 +268,7 @@ private fun PersonDetailContent(
                 if (popularCredits.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(24.dp))
                     DetailPosterRailSection(
-                        title = stringResource(Res.string.person_popular),
+                        title = "Popular",
                         items = popularCredits,
                         watchedKeys = emptySet(),
                         headerHorizontalPadding = 20.dp,
@@ -283,7 +279,7 @@ private fun PersonDetailContent(
                 if (latestCredits.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(24.dp))
                     DetailPosterRailSection(
-                        title = stringResource(Res.string.person_latest),
+                        title = "Latest",
                         items = latestCredits,
                         watchedKeys = emptySet(),
                         headerHorizontalPadding = 20.dp,
@@ -294,7 +290,7 @@ private fun PersonDetailContent(
                 if (upcomingCredits.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(24.dp))
                     DetailPosterRailSection(
-                        title = stringResource(Res.string.person_upcoming),
+                        title = "Upcoming",
                         items = upcomingCredits,
                         watchedKeys = emptySet(),
                         headerHorizontalPadding = 20.dp,
@@ -409,23 +405,18 @@ private fun HeroSection(
         val infoItems = buildList {
             person.birthday?.let { bday ->
                 val age = calculateAge(bday, person.deathday)
-                val ageStr = if (age != null) stringResource(Res.string.person_age, age) else ""
+                val ageStr = if (age != null) " (age $age)" else ""
                 val bdayDisplay = formatDateForDisplay(bday) ?: bday
                 val deathDisplay = person.deathday?.let { formatDateForDisplay(it) ?: it }
                 val line = if (deathDisplay != null) {
-                    buildString {
-                        append(stringResource(Res.string.person_born, bdayDisplay, ""))
-                        append(" — ")
-                        append(stringResource(Res.string.person_died, deathDisplay))
-                        append(ageStr)
-                    }
+                    "Born $bdayDisplay — Died $deathDisplay$ageStr"
                 } else {
-                    stringResource(Res.string.person_born, bdayDisplay, ageStr)
+                    "Born $bdayDisplay$ageStr"
                 }
                 add(line)
             }
             person.placeOfBirth?.let { add(it) }
-            person.knownFor?.let { add(stringResource(Res.string.person_known_for, it)) }
+            person.knownFor?.let { add("Known for: $it") }
         }
         if (infoItems.isNotEmpty()) {
             infoItems.forEach { info ->
@@ -691,7 +682,7 @@ private fun PersonDetailError(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = stringResource(Res.string.person_something_wrong),
+                text = "Something went wrong",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -709,7 +700,7 @@ private fun PersonDetailError(
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             ) {
-                Text(stringResource(Res.string.action_retry))
+                Text("Retry")
             }
         }
     }
@@ -750,11 +741,15 @@ private fun calculateAge(birthday: String, deathday: String?): Int? {
 private fun formatDateForDisplay(date: String): String? {
     val parts = date.split("-").mapNotNull { it.toIntOrNull() }
     if (parts.size < 3) return null
+    val months = arrayOf(
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    )
     val month = parts[1]
     val day = parts[2]
     val year = parts[0]
     return if (month in 1..12) {
-        "${localizedShortMonthName(month)} $day, $year"
+        "${months[month - 1]} $day, $year"
     } else {
         null
     }

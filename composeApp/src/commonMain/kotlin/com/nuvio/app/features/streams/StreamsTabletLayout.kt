@@ -45,8 +45,6 @@ import com.nuvio.app.isIos
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun TabletStreamsLayout(
@@ -67,8 +65,13 @@ internal fun TabletStreamsLayout(
     modifier: Modifier = Modifier,
 ) {
     val hazeState = rememberHazeState()
-    val tabletBackdrop = remember(background, poster) {
-        background ?: poster
+    val tabletBackdrop = remember(isEpisode, episodeThumbnail, background, poster) {
+        resolveTabletBackdrop(
+            isEpisode = isEpisode,
+            episodeThumbnail = episodeThumbnail,
+            background = background,
+            poster = poster,
+        )
     }
     var backdropVisible by remember(tabletBackdrop) { mutableStateOf(false) }
 
@@ -252,7 +255,7 @@ private fun TabletMovieInfoPanel(
             )
         } else {
             Text(
-                text = stringResource(Res.string.streams_no_metadata),
+                text = "No metadata available",
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontSize = 16.sp,
                     fontStyle = FontStyle.Italic,
@@ -311,12 +314,7 @@ private fun TabletEpisodeInfoPanel(
 
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = stringResource(
-                Res.string.streams_episode_title_with_name,
-                seasonNumber,
-                episodeNumber,
-                episodeTitle?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.streams_episode_fallback_title),
-            ),
+            text = "S${seasonNumber}E${episodeNumber} - ${episodeTitle?.takeIf { it.isNotBlank() } ?: "Episode"}",
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontSize = 16.sp,
                 lineHeight = 24.sp,
@@ -347,7 +345,7 @@ private fun ActiveScrapersStatusBlock(
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Text(
-            text = stringResource(Res.string.streams_active_scrapers),
+            text = "Active scrapers",
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
@@ -381,4 +379,18 @@ private fun ActiveScrapersStatusBlock(
             }
         }
     }
+}
+
+private fun resolveTabletBackdrop(
+    isEpisode: Boolean,
+    episodeThumbnail: String?,
+    background: String?,
+    poster: String?,
+): String? {
+    if (!isEpisode) return background ?: poster
+
+    val preferredEpisodeThumbnail = episodeThumbnail?.takeIf {
+        it.isNotBlank() && it != poster
+    }
+    return preferredEpisodeThumbnail ?: background ?: poster
 }

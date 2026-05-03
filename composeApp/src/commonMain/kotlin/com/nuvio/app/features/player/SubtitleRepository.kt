@@ -1,7 +1,6 @@
 package com.nuvio.app.features.player
 
 import com.nuvio.app.features.addons.AddonRepository
-import com.nuvio.app.features.addons.buildAddonResourceUrl
 import com.nuvio.app.features.addons.httpGetText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,9 +17,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.compose_player_no_subtitles_found
-import org.jetbrains.compose.resources.getString
 
 object SubtitleRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -53,12 +49,8 @@ object SubtitleRepository {
                     subtitleResource.idPrefixes.any { videoId.startsWith(it) }
                 if (!prefixMatch) continue
 
-                val subtitleUrl = buildAddonResourceUrl(
-                    manifestUrl = manifest.transportUrl,
-                    resource = "subtitles",
-                    type = type,
-                    id = videoId,
-                )
+                val baseUrl = manifest.transportUrl.substringBeforeLast("/manifest.json")
+                val subtitleUrl = "$baseUrl/subtitles/$type/$videoId.json"
 
                 try {
                     val response = withContext(Dispatchers.Default) {
@@ -79,7 +71,7 @@ object SubtitleRepository {
                                 id = id,
                                 url = url,
                                 language = lang,
-                                display = "${getLanguageLabelForCode(lang)} (${addon.displayTitle})",
+                                display = "${formatLanguage(lang)} (${addon.displayTitle})",
                             )
                         )
                     }
@@ -89,7 +81,7 @@ object SubtitleRepository {
 
             _addonSubtitles.value = allSubs
             if (allSubs.isEmpty() && addons.any { it.manifest?.resources?.any { r -> r.name == "subtitles" } == true }) {
-                _error.value = getString(Res.string.compose_player_no_subtitles_found)
+                _error.value = "No subtitles found"
             }
             _isLoading.value = false
         }

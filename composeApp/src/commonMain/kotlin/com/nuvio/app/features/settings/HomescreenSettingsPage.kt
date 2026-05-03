@@ -36,25 +36,6 @@ import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.action_reset
-import nuvio.composeapp.generated.resources.settings_homescreen_empty_message
-import nuvio.composeapp.generated.resources.settings_homescreen_empty_title
-import nuvio.composeapp.generated.resources.settings_homescreen_keep_home_focused
-import nuvio.composeapp.generated.resources.settings_homescreen_limit_reached
-import nuvio.composeapp.generated.resources.settings_homescreen_no_sources_selected
-import nuvio.composeapp.generated.resources.settings_homescreen_pin_to_move_toast
-import nuvio.composeapp.generated.resources.settings_homescreen_section_catalogs
-import nuvio.composeapp.generated.resources.settings_homescreen_section_catalogs_collections
-import nuvio.composeapp.generated.resources.settings_homescreen_section_collections
-import nuvio.composeapp.generated.resources.settings_homescreen_section_hero
-import nuvio.composeapp.generated.resources.settings_homescreen_section_hero_sources
-import nuvio.composeapp.generated.resources.settings_homescreen_selected_count
-import nuvio.composeapp.generated.resources.settings_homescreen_show_hero
-import nuvio.composeapp.generated.resources.settings_homescreen_show_hero_description
-import nuvio.composeapp.generated.resources.settings_homescreen_summary
-import nuvio.composeapp.generated.resources.settings_homescreen_summary_hint
-import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -76,13 +57,13 @@ internal fun LazyListScope.homescreenSettingsContent(
     }
     item {
         SettingsSection(
-            title = stringResource(Res.string.settings_homescreen_section_hero),
+            title = "HERO",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_homescreen_show_hero),
-                    description = stringResource(Res.string.settings_homescreen_show_hero_description),
+                    title = "Show Hero",
+                    description = "Display a featured hero carousel at the top of Home. Choose up to 2 source catalogs below.",
                     checked = heroEnabled,
                     isTablet = isTablet,
                     onCheckedChange = HomeCatalogSettingsRepository::setHeroEnabled,
@@ -95,7 +76,7 @@ internal fun LazyListScope.homescreenSettingsContent(
         if (heroEnabled && catalogOnlyItems.isNotEmpty()) {
             var heroSourcesExpanded by remember { mutableStateOf(false) }
             SettingsSection(
-                title = stringResource(Res.string.settings_homescreen_section_hero_sources),
+                title = "HERO SOURCES",
                 isTablet = isTablet,
             ) {
                 HeroSourcesDropdown(
@@ -112,36 +93,35 @@ internal fun LazyListScope.homescreenSettingsContent(
         if (items.isEmpty()) {
             HomeEmptyStateCard(
                 modifier = Modifier.fillMaxWidth(),
-                title = stringResource(Res.string.settings_homescreen_empty_title),
-                message = stringResource(Res.string.settings_homescreen_empty_message),
+                title = "No home catalogs",
+                message = "Install an addon with board-compatible catalogs to configure Homescreen rows.",
             )
         } else {
             val catalogCount = items.count { !it.isCollection }
             val collectionCount = items.count { it.isCollection }
             val sectionTitle = when {
-                collectionCount > 0 && catalogCount > 0 -> stringResource(Res.string.settings_homescreen_section_catalogs_collections)
-                collectionCount > 0 -> stringResource(Res.string.settings_homescreen_section_collections)
-                else -> stringResource(Res.string.settings_homescreen_section_catalogs)
+                collectionCount > 0 && catalogCount > 0 -> "CATALOGS & COLLECTIONS"
+                collectionCount > 0 -> "COLLECTIONS"
+                else -> "CATALOGS"
             }
             SettingsSection(
                 title = sectionTitle,
                 isTablet = isTablet,
                 actions = {
                     NuvioActionLabel(
-                        text = stringResource(Res.string.action_reset),
+                        text = "Reset",
                         onClick = HomeCatalogSettingsRepository::resetToDefaults,
                     )
                 },
             ) {
                 val hapticFeedback = LocalHapticFeedback.current
-                val pinToMoveToast = stringResource(Res.string.settings_homescreen_pin_to_move_toast)
 
                 HomescreenCatalogList(
                     isTablet = isTablet,
                     items = items,
                     onPinnedDragAttempt = {
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        NuvioToastController.show(pinToMoveToast)
+                        NuvioToastController.show("Remove pin to top from collection to move")
                     },
                 )
             }
@@ -157,7 +137,6 @@ private fun HeroSourcesDropdown(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
 ) {
-    val noSourcesSelected = stringResource(Res.string.settings_homescreen_no_sources_selected)
     SettingsGroup(isTablet = isTablet) {
         Row(
             modifier = Modifier
@@ -171,11 +150,7 @@ private fun HeroSourcesDropdown(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = stringResource(
-                        Res.string.settings_homescreen_selected_count,
-                        selectedHeroSourceCount,
-                        HomeCatalogSettingsRepository.HERO_SOURCE_SELECTION_LIMIT,
-                    ),
+                    text = "$selectedHeroSourceCount of ${HomeCatalogSettingsRepository.HERO_SOURCE_SELECTION_LIMIT} selected",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Medium,
@@ -183,7 +158,7 @@ private fun HeroSourcesDropdown(
                 Text(
                     text = items.filter { it.heroSourceEnabled }
                         .joinToString(separator = ", ") { it.displayTitle }
-                        .ifBlank { noSourcesSelected },
+                        .ifBlank { "No hero sources selected" },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -207,11 +182,7 @@ private fun HeroSourcesDropdown(
                         description = if (!item.heroSourceEnabled &&
                             selectedHeroSourceCount >= HomeCatalogSettingsRepository.HERO_SOURCE_SELECTION_LIMIT
                         ) {
-                            stringResource(
-                                Res.string.settings_homescreen_limit_reached,
-                                item.addonName,
-                                HomeCatalogSettingsRepository.HERO_SOURCE_SELECTION_LIMIT,
-                            )
+                            "${item.addonName} • Limit reached (max 2)"
                         } else {
                             item.addonName
                         },
@@ -240,23 +211,18 @@ private fun HomescreenSummaryCard(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                text = stringResource(Res.string.settings_homescreen_keep_home_focused),
+                text = "Keep Home focused",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = stringResource(
-                    Res.string.settings_homescreen_summary,
-                    enabledCatalogCount,
-                    totalCatalogCount,
-                    selectedHeroSourceCount,
-                ),
+                text = "$enabledCatalogCount of $totalCatalogCount catalogs visible • $selectedHeroSourceCount hero sources selected",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = stringResource(Res.string.settings_homescreen_summary_hint),
+                text = "Open a catalog only when you need to rename or reorder it.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

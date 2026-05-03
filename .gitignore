@@ -27,3 +27,20 @@ asset
 scripts/scrape_android_compose_animation_docs.py
 tools
 AGENTS.md
+.cursor/
+mediamp-backup-*/
+backup/
+-tree -d experiment3 mediamp
+.agents
+.claude
+.junie
+.vscode
+skills-lock.json
+.github/workflows/claude-pr-fix.yml
+.github/workflows/claude-pr-review.yml
+composeApp/desktop-icons/
+composeApp/src/androidMain/res/mipmap-xhdpi/nuvio-windows.ico
+composeApp/src/windowsPackageResources/
+composeApp/scripts/package-release-inno.ps1
+.env
+composeApp/runtime-config/release.properties

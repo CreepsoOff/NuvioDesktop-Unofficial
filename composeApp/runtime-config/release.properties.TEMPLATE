@@ -1,0 +1,5 @@
+# Checked-in production desktop/mobile runtime defaults.
+# Local development may override any of these via environment variables or root local.properties.
+SUPABASE_URL=# URL for the Supabase instance, with RLS policies configured for public access.
+SUPABASE_ANON_KEY=# Anon key for the above URL, with RLS policies configured for public access.
+DONATIONS_BASE_URL=# Base URL for the donations API, with CORS configured for public access.

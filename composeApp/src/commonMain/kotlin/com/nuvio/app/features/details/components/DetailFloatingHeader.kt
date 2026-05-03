@@ -41,8 +41,6 @@ import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.isIos
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun DetailFloatingHeader(
@@ -114,7 +112,7 @@ fun DetailFloatingHeader(
                     if (meta.logo != null && !logoLoadError) {
                         AsyncImage(
                             model = meta.logo,
-                            contentDescription = stringResource(Res.string.detail_logo_content_description, meta.name),
+                            contentDescription = "${meta.name} logo",
                             modifier = Modifier
                                 .width(logoWidth)
                                 .widthIn(max = 240.dp)
@@ -168,11 +166,7 @@ private fun DetailFloatingHeaderAction(
     ) {
         Icon(
             imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-            contentDescription = if (isSaved) {
-                stringResource(Res.string.hero_remove_from_library)
-            } else {
-                stringResource(Res.string.hero_add_to_library)
-            },
+            contentDescription = if (isSaved) "Remove from Library" else "Add to Library",
             tint = MaterialTheme.colorScheme.onBackground,
         )
     }

@@ -16,14 +16,6 @@ import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesRepository
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.compose_settings_page_account
-import nuvio.composeapp.generated.resources.compose_settings_page_addons
-import nuvio.composeapp.generated.resources.compose_settings_page_continue_watching
-import nuvio.composeapp.generated.resources.compose_settings_page_homescreen
-import nuvio.composeapp.generated.resources.compose_settings_page_meta_screen
-import nuvio.composeapp.generated.resources.compose_settings_page_plugins
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun HomescreenSettingsScreen(
@@ -67,7 +59,7 @@ fun HomescreenSettingsScreen(
     ) {
         stickyHeader {
             NuvioScreenHeader(
-                title = stringResource(Res.string.compose_settings_page_homescreen),
+                title = "Homescreen",
                 onBack = onBack,
             )
         }
@@ -93,7 +85,7 @@ fun MetaScreenSettingsScreen(
     ) {
         stickyHeader {
             NuvioScreenHeader(
-                title = stringResource(Res.string.compose_settings_page_meta_screen),
+                title = "Meta Screen",
                 onBack = onBack,
             )
         }
@@ -118,7 +110,7 @@ fun ContinueWatchingSettingsScreen(
     ) {
         stickyHeader {
             NuvioScreenHeader(
-                title = stringResource(Res.string.compose_settings_page_continue_watching),
+                title = "Continue Watching",
                 onBack = onBack,
             )
         }
@@ -145,7 +137,7 @@ fun AddonsSettingsScreen(
     ) {
         stickyHeader {
             NuvioScreenHeader(
-                title = stringResource(Res.string.compose_settings_page_addons),
+                title = "Addons",
                 onBack = onBack,
             )
         }
@@ -171,7 +163,7 @@ fun PluginsSettingsScreen(
     ) {
         stickyHeader {
             NuvioScreenHeader(
-                title = stringResource(Res.string.compose_settings_page_plugins),
+                title = "Plugins",
                 onBack = onBack,
             )
         }
@@ -188,7 +180,7 @@ fun AccountSettingsScreen(
     ) {
         stickyHeader {
             NuvioScreenHeader(
-                title = stringResource(Res.string.compose_settings_page_account),
+                title = "Account",
                 onBack = onBack,
             )
         }

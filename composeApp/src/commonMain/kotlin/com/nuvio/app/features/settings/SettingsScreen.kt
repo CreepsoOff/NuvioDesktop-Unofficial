@@ -58,9 +58,6 @@ import com.nuvio.app.features.tmdb.TmdbSettings
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesUiState
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.compose_settings_page_root
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SettingsScreen(
@@ -74,7 +71,6 @@ fun SettingsScreen(
     onDownloadsClick: () -> Unit = {},
     onAccountClick: () -> Unit = {},
     onSupportersContributorsClick: () -> Unit = {},
-    onCheckForUpdatesClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
 ) {
     BoxWithConstraints(
@@ -90,7 +86,6 @@ fun SettingsScreen(
             ThemeSettingsRepository.selectedTheme
         }.collectAsStateWithLifecycle()
         val amoledEnabled by remember { ThemeSettingsRepository.amoledEnabled }.collectAsStateWithLifecycle()
-        val selectedAppLanguage by remember { ThemeSettingsRepository.selectedAppLanguage }.collectAsStateWithLifecycle()
         val tmdbSettings by remember {
             TmdbSettingsRepository.ensureLoaded()
             TmdbSettingsRepository.uiState
@@ -182,8 +177,6 @@ fun SettingsScreen(
                 onThemeSelected = ThemeSettingsRepository::setTheme,
                 amoledEnabled = amoledEnabled,
                 onAmoledToggle = ThemeSettingsRepository::setAmoled,
-                selectedAppLanguage = selectedAppLanguage,
-                onAppLanguageSelected = ThemeSettingsRepository::setAppLanguage,
                 episodeReleaseNotificationsUiState = episodeReleaseNotificationsUiState,
                 tmdbSettings = tmdbSettings,
                 mdbListSettings = mdbListSettings,
@@ -197,7 +190,6 @@ fun SettingsScreen(
                 onSwitchProfile = onSwitchProfile,
                 onDownloadsClick = onDownloadsClick,
                 onSupportersContributorsClick = onSupportersContributorsClick,
-                onCheckForUpdatesClick = onCheckForUpdatesClick,
                 onCollectionsClick = onCollectionsClick,
             )
         } else {
@@ -222,8 +214,6 @@ fun SettingsScreen(
                 onThemeSelected = ThemeSettingsRepository::setTheme,
                 amoledEnabled = amoledEnabled,
                 onAmoledToggle = ThemeSettingsRepository::setAmoled,
-                selectedAppLanguage = selectedAppLanguage,
-                onAppLanguageSelected = ThemeSettingsRepository::setAppLanguage,
                 episodeReleaseNotificationsUiState = episodeReleaseNotificationsUiState,
                 tmdbSettings = tmdbSettings,
                 mdbListSettings = mdbListSettings,
@@ -243,7 +233,6 @@ fun SettingsScreen(
                 onDownloadsClick = onDownloadsClick,
                 onAccountClick = onAccountClick,
                 onSupportersContributorsClick = onSupportersContributorsClick,
-                onCheckForUpdatesClick = onCheckForUpdatesClick,
                 onCollectionsClick = onCollectionsClick,
             )
         }
@@ -272,8 +261,6 @@ private fun MobileSettingsScreen(
     onThemeSelected: (AppTheme) -> Unit,
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
-    selectedAppLanguage: AppLanguage,
-    onAppLanguageSelected: (AppLanguage) -> Unit,
     episodeReleaseNotificationsUiState: EpisodeReleaseNotificationsUiState,
     tmdbSettings: TmdbSettings,
     mdbListSettings: MdbListSettings,
@@ -293,14 +280,13 @@ private fun MobileSettingsScreen(
     onDownloadsClick: () -> Unit = {},
     onAccountClick: () -> Unit = {},
     onSupportersContributorsClick: () -> Unit = {},
-    onCheckForUpdatesClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
 ) {
     NuvioScreen {
         stickyHeader {
             val previousPage = page.previousPage()
             NuvioScreenHeader(
-                title = stringResource(page.titleRes),
+                title = page.title,
                 onBack = previousPage?.let { { onPageChange(it) } },
             )
         }
@@ -315,7 +301,6 @@ private fun MobileSettingsScreen(
                 onIntegrationsClick = { onPageChange(SettingsPage.Integrations) },
                 onTraktClick = { onPageChange(SettingsPage.TraktAuthentication) },
                 onSupportersContributorsClick = onSupportersContributorsClick,
-                onCheckForUpdatesClick = onCheckForUpdatesClick,
                 onDownloadsClick = onDownloadsClick,
                 onAccountClick = onAccountClick,
                 onSwitchProfileClick = onSwitchProfile,
@@ -349,8 +334,6 @@ private fun MobileSettingsScreen(
                 onThemeSelected = onThemeSelected,
                 amoledEnabled = amoledEnabled,
                 onAmoledToggle = onAmoledToggle,
-                selectedAppLanguage = selectedAppLanguage,
-                onAppLanguageSelected = onAppLanguageSelected,
                 onContinueWatchingClick = onContinueWatchingClick,
                 onPosterCustomizationClick = { onPageChange(SettingsPage.PosterCustomization) },
             )
@@ -434,8 +417,6 @@ private fun TabletSettingsScreen(
     onThemeSelected: (AppTheme) -> Unit,
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
-    selectedAppLanguage: AppLanguage,
-    onAppLanguageSelected: (AppLanguage) -> Unit,
     episodeReleaseNotificationsUiState: EpisodeReleaseNotificationsUiState,
     tmdbSettings: TmdbSettings,
     mdbListSettings: MdbListSettings,
@@ -449,7 +430,6 @@ private fun TabletSettingsScreen(
     onSwitchProfile: (() -> Unit)? = null,
     onDownloadsClick: () -> Unit = {},
     onSupportersContributorsClick: () -> Unit = {},
-    onCheckForUpdatesClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.General.name) }
@@ -482,7 +462,7 @@ private fun TabletSettingsScreen(
                     .padding(top = topOffset),
             ) {
                 Text(
-                    text = stringResource(Res.string.compose_settings_page_root),
+                    text = "Settings",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
@@ -496,7 +476,7 @@ private fun TabletSettingsScreen(
                 Spacer(modifier = Modifier.height(10.dp))
                 SettingsCategory.entries.forEach { category ->
                     SettingsSidebarItem(
-                        label = stringResource(category.labelRes),
+                        label = category.label,
                         icon = category.icon,
                         selected = category == activeCategory,
                         onClick = {
@@ -523,11 +503,7 @@ private fun TabletSettingsScreen(
             item {
                 val previousPage = page.previousPage()
                 TabletPageHeader(
-                    title = if (page == SettingsPage.Root) {
-                        stringResource(activeCategory.labelRes)
-                    } else {
-                        stringResource(page.titleRes)
-                    },
+                    title = if (page == SettingsPage.Root) activeCategory.label else page.title,
                     showBack = previousPage != null,
                     onBack = { previousPage?.let(onPageChange) },
                 )
@@ -542,7 +518,6 @@ private fun TabletSettingsScreen(
                     onIntegrationsClick = { openInlinePage(SettingsPage.Integrations) },
                     onTraktClick = { openInlinePage(SettingsPage.TraktAuthentication) },
                     onSupportersContributorsClick = { openInlinePage(SettingsPage.SupportersContributors) },
-                    onCheckForUpdatesClick = onCheckForUpdatesClick,
                     onDownloadsClick = onDownloadsClick,
                     onAccountClick = { openInlinePage(SettingsPage.Account) },
                     onSwitchProfileClick = onSwitchProfile,
@@ -579,8 +554,6 @@ private fun TabletSettingsScreen(
                     onThemeSelected = onThemeSelected,
                     amoledEnabled = amoledEnabled,
                     onAmoledToggle = onAmoledToggle,
-                    selectedAppLanguage = selectedAppLanguage,
-                    onAppLanguageSelected = onAppLanguageSelected,
                     onContinueWatchingClick = { openInlinePage(SettingsPage.ContinueWatching) },
                     onPosterCustomizationClick = { openInlinePage(SettingsPage.PosterCustomization) },
                 )

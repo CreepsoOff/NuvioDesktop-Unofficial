@@ -23,8 +23,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
-import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.getString
 
 @Serializable
 private data class AddonRow(
@@ -200,17 +198,17 @@ object AddonRepository {
 
     suspend fun addAddon(rawUrl: String): AddAddonResult {
         if (isUsingPrimaryAddonsFromSecondaryProfile()) {
-            return AddAddonResult.Error(getString(Res.string.profile_primary_addons_required))
+            return AddAddonResult.Error("This profile uses primary addons.")
         }
         log.i { "addAddon() — rawUrl=$rawUrl" }
         val manifestUrl = try {
             normalizeManifestUrl(rawUrl)
         } catch (error: IllegalArgumentException) {
-            return AddAddonResult.Error(error.message ?: getString(Res.string.addon_invalid_url))
+            return AddAddonResult.Error(error.message ?: "Enter a valid addon URL")
         }
 
         if (_uiState.value.addons.any { it.manifestUrl == manifestUrl }) {
-            return AddAddonResult.Error(getString(Res.string.addon_already_installed))
+            return AddAddonResult.Error("That addon is already installed.")
         }
 
         val manifest = try {
@@ -222,7 +220,7 @@ object AddonRepository {
                 )
             }
         } catch (error: Throwable) {
-            return AddAddonResult.Error(error.message ?: getString(Res.string.addon_load_manifest_failed))
+            return AddAddonResult.Error(error.message ?: "Unable to load manifest")
         }
 
         _uiState.update { current ->
@@ -247,27 +245,6 @@ object AddonRepository {
             current.copy(
                 addons = current.addons.filterNot { it.manifestUrl == manifestUrl },
             )
-        }
-        persist()
-        pushToServer()
-    }
-
-    fun moveAddon(fromIndex: Int, toIndex: Int) {
-        if (isUsingPrimaryAddonsFromSecondaryProfile()) return
-        _uiState.update { current ->
-            val addons = current.addons
-            if (
-                fromIndex !in addons.indices ||
-                toIndex !in addons.indices ||
-                fromIndex == toIndex
-            ) {
-                return@update current
-            }
-
-            val reordered = addons.toMutableList()
-            val movingAddon = reordered.removeAt(fromIndex)
-            reordered.add(toIndex, movingAddon)
-            current.copy(addons = reordered)
         }
         persist()
         pushToServer()
@@ -312,7 +289,7 @@ object AddonRepository {
                                     onFailure = { error ->
                                         addon.copy(
                                             isRefreshing = false,
-                                            errorMessage = error.message ?: getString(Res.string.addon_load_manifest_failed),
+                                            errorMessage = error.message ?: "Unable to load manifest",
                                         )
                                     },
                                 )
