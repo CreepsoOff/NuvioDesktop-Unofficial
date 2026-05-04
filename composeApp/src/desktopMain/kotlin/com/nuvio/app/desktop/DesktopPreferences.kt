@@ -4,14 +4,13 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.util.Base64
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteExisting
 import kotlin.io.path.exists
-import kotlin.io.path.inputStream
 import kotlin.io.path.isDirectory
 import kotlin.io.path.listDirectoryEntries
-import kotlin.io.path.outputStream
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
@@ -19,16 +18,87 @@ internal object DesktopPreferences {
     private const val setSeparator = "\u001F"
     private val keyEncoder = Base64.getUrlEncoder().withoutPadding()
 
-    private val rootDir: Path by lazy {
-        Paths.get(
-            System.getProperty("user.home"),
-            "Library",
-            "Application Support",
-            "Nuvio",
-            "preferences",
-        ).apply {
-            createDirectories()
+    /**
+     * Preferences root must match OS conventions. The initial Desktop integration incorrectly
+     * used macOS's ~/Library/Application Support on every OS, which broke Windows/Linux installs.
+     */
+    private fun preferencesRootDir(): Path {
+        val os = System.getProperty("os.name")?.lowercase() ?: ""
+        val home = System.getProperty("user.home") ?: "."
+        return when {
+            os.contains("win") -> windowsLocalAppData().resolve("Nuvio").resolve("preferences")
+            os.contains("mac") ->
+                Paths.get(home, "Library", "Application Support", "Nuvio", "preferences")
+            else ->
+                xdgConfigHome().resolve("Nuvio").resolve("preferences")
         }
+    }
+
+    private fun windowsLocalAppData(): Path {
+        val fromEnv = System.getenv("LOCALAPPDATA")?.trim()?.takeIf(String::isNotEmpty)
+        return if (fromEnv != null) {
+            Paths.get(fromEnv)
+        } else {
+            Paths.get(System.getProperty("user.home") ?: ".", "AppData", "Local")
+        }
+    }
+
+    private fun xdgConfigHome(): Path {
+        val fromEnv = System.getenv("XDG_CONFIG_HOME")?.trim()?.takeIf(String::isNotEmpty)
+        return if (fromEnv != null) {
+            Paths.get(fromEnv)
+        } else {
+            Paths.get(System.getProperty("user.home") ?: ".", ".config")
+        }
+    }
+
+    /**
+     * Move data written under the mistaken cross-platform path so upgrades keep auth, profiles,
+     * watch progress, and Trakt tokens without manual intervention.
+     */
+    private fun migrateLegacyPreferencesIfNeeded(target: Path) {
+        val home = System.getProperty("user.home") ?: return
+        val legacy = Paths.get(home, "Library", "Application Support", "Nuvio", "preferences")
+            .normalize()
+            .toAbsolutePath()
+        val absTarget = target.normalize().toAbsolutePath()
+        if (legacy == absTarget || !legacy.exists()) return
+        if (!legacy.isDirectory()) return
+
+        val legacyEntries = runCatching { legacy.listDirectoryEntries() }.getOrNull().orEmpty()
+        if (legacyEntries.isEmpty()) return
+
+        if (absTarget.exists()) {
+            val targetEntries = runCatching { absTarget.listDirectoryEntries() }.getOrNull().orEmpty()
+            if (targetEntries.isNotEmpty()) return
+            runCatching { absTarget.deleteExisting() }
+        }
+
+        runCatching {
+            Files.createDirectories(absTarget.parent)
+            Files.move(legacy, absTarget, StandardCopyOption.ATOMIC_MOVE)
+        }.recoverCatching {
+            copyDirectoryContents(legacy, absTarget)
+            deleteRecursively(legacy)
+        }
+    }
+
+    private fun copyDirectoryContents(from: Path, to: Path) {
+        Files.createDirectories(to)
+        from.listDirectoryEntries().forEach { entry ->
+            val dest = to.resolve(entry.fileName)
+            if (entry.isDirectory()) {
+                copyDirectoryContents(entry, dest)
+            } else {
+                Files.copy(entry, dest, StandardCopyOption.REPLACE_EXISTING)
+            }
+        }
+    }
+
+    private val rootDir: Path by lazy {
+        val dir = preferencesRootDir()
+        migrateLegacyPreferencesIfNeeded(dir)
+        dir.apply { createDirectories() }
     }
 
     private fun namespaceDir(namespace: String): Path =
