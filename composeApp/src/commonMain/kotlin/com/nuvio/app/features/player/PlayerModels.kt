@@ -71,3 +71,46 @@ data class PlayerPlaybackSnapshot(
     val bufferedPositionMs: Long = 0L,
     val playbackSpeed: Float = 1f,
 )
+
+/**
+ * Resume seek for [PlayerScreen]: fraction-based resume waits for a known duration; absolute
+ * resume seeks even when duration stays unknown (live streams).
+ */
+internal sealed class InitialResumeSeekAction {
+    data object NoSeekNeeded : InitialResumeSeekAction()
+
+    /** Fraction resume needs duration; keep waiting for timeline metadata. */
+    data object DeferUntilTimelineKnown : InitialResumeSeekAction()
+
+    data class Seek(val positionMs: Long) : InitialResumeSeekAction()
+}
+
+internal fun resolveInitialResumeSeekAction(
+    activeInitialPositionMs: Long,
+    activeInitialProgressFraction: Float?,
+    durationMs: Long,
+): InitialResumeSeekAction {
+    val progressFraction = activeInitialProgressFraction
+        ?.takeIf { it > 0f }
+        ?.coerceIn(0f, 1f)
+
+    return when {
+        activeInitialPositionMs > 0L -> {
+            val pos =
+                if (durationMs > 0L) {
+                    activeInitialPositionMs.coerceIn(0L, durationMs)
+                } else {
+                    activeInitialPositionMs
+                }
+            InitialResumeSeekAction.Seek(pos)
+        }
+
+        progressFraction != null -> {
+            if (durationMs <= 0L) return InitialResumeSeekAction.DeferUntilTimelineKnown
+            val pos = (durationMs.toDouble() * progressFraction.toDouble()).toLong()
+            if (pos <= 0L) InitialResumeSeekAction.NoSeekNeeded else InitialResumeSeekAction.Seek(pos)
+        }
+
+        else -> InitialResumeSeekAction.NoSeekNeeded
+    }
+}

@@ -1208,30 +1208,26 @@ fun PlayerScreen(
                 return@LaunchedEffect
             }
 
-            val progressFraction = activeInitialProgressFraction
-                ?.takeIf { it > 0f }
-                ?.coerceIn(0f, 1f)
-            val targetPositionMs = when {
-                activeInitialPositionMs > 0L -> activeInitialPositionMs
-                progressFraction != null && playbackSnapshot.durationMs > 0L -> {
-                    (playbackSnapshot.durationMs.toDouble() * progressFraction.toDouble()).toLong()
+            when (
+                val action = resolveInitialResumeSeekAction(
+                    activeInitialPositionMs,
+                    activeInitialProgressFraction,
+                    playbackSnapshot.durationMs,
+                )
+            ) {
+                InitialResumeSeekAction.NoSeekNeeded -> {
+                    initialSeekApplied = true
                 }
-                progressFraction != null -> return@LaunchedEffect
-                else -> 0L
-            }
-            if (targetPositionMs <= 0L) {
-                initialSeekApplied = true
-                return@LaunchedEffect
-            }
 
-            // Delay resume seek until media timeline is available; some backends
-            // ignore early seek commands fired before duration is known.
-            if (playbackSnapshot.durationMs <= 0L) {
-                return@LaunchedEffect
-            }
+                InitialResumeSeekAction.DeferUntilTimelineKnown -> {
+                    return@LaunchedEffect
+                }
 
-            controller.seekTo(targetPositionMs)
-            initialSeekApplied = true
+                is InitialResumeSeekAction.Seek -> {
+                    controller.seekTo(action.positionMs)
+                    initialSeekApplied = true
+                }
+            }
         }
 
         LaunchedEffect(
