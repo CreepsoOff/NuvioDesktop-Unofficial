@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import kotlin.math.abs
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -72,45 +73,165 @@ data class PlayerPlaybackSnapshot(
     val playbackSpeed: Float = 1f,
 )
 
+internal const val InitialResumeSeekPositionToleranceMs = 2_000L
+
+internal const val InitialResumeSeekRetryThrottleMs = 750L
+
+internal const val InitialResumeSeekMaxAttempts = 45
+
 /**
- * Resume seek for [PlayerScreen]: fraction-based resume waits for a known duration; absolute
- * resume seeks even when duration stays unknown (live streams).
+ * One step of initial resume handling for [PlayerScreen].
+ *
+ * Absolute resume may issue [Seek] before duration is known; completion is confirmed via position
+ * (and retries are throttled). Fraction-based resume defers until [durationMs] is known.
  */
-internal sealed class InitialResumeSeekAction {
-    data object NoSeekNeeded : InitialResumeSeekAction()
+internal sealed class InitialResumeSeekDecision {
+    data object AlreadyComplete : InitialResumeSeekDecision()
 
-    /** Fraction resume needs duration; keep waiting for timeline metadata. */
-    data object DeferUntilTimelineKnown : InitialResumeSeekAction()
+    /** Fraction resume: wait for timeline metadata. */
+    data object DeferTimeline : InitialResumeSeekDecision()
 
-    data class Seek(val positionMs: Long) : InitialResumeSeekAction()
+    data object WaitLoading : InitialResumeSeekDecision()
+
+    /** No seek needed, or position confirmed close enough to target (or max attempts). */
+    data object ConfirmComplete : InitialResumeSeekDecision()
+
+    data class Seek(val positionMs: Long) : InitialResumeSeekDecision()
+
+    /** Wait before another seek (throttle). */
+    data class Sleep(val ms: Long) : InitialResumeSeekDecision()
 }
 
-internal fun resolveInitialResumeSeekAction(
+internal fun resolveInitialResumeTargetMs(
     activeInitialPositionMs: Long,
     activeInitialProgressFraction: Float?,
     durationMs: Long,
-): InitialResumeSeekAction {
+): Long? {
     val progressFraction = activeInitialProgressFraction
         ?.takeIf { it > 0f }
         ?.coerceIn(0f, 1f)
 
     return when {
         activeInitialPositionMs > 0L -> {
-            val pos =
-                if (durationMs > 0L) {
-                    activeInitialPositionMs.coerceIn(0L, durationMs)
-                } else {
-                    activeInitialPositionMs
-                }
-            InitialResumeSeekAction.Seek(pos)
+            if (durationMs > 0L) {
+                activeInitialPositionMs.coerceIn(0L, durationMs)
+            } else {
+                activeInitialPositionMs
+            }
         }
 
         progressFraction != null -> {
-            if (durationMs <= 0L) return InitialResumeSeekAction.DeferUntilTimelineKnown
-            val pos = (durationMs.toDouble() * progressFraction.toDouble()).toLong()
-            if (pos <= 0L) InitialResumeSeekAction.NoSeekNeeded else InitialResumeSeekAction.Seek(pos)
+            if (durationMs <= 0L) return null
+            (durationMs.toDouble() * progressFraction.toDouble()).toLong()
         }
 
-        else -> InitialResumeSeekAction.NoSeekNeeded
+        else -> 0L
+    }
+}
+
+internal fun evaluateInitialResumeSeekDecision(
+    initialSeekApplied: Boolean,
+    isLoading: Boolean,
+    activeInitialPositionMs: Long,
+    activeInitialProgressFraction: Float?,
+    durationMs: Long,
+    positionMs: Long,
+    seekAttempts: Int,
+    lastSeekAttemptTimeMs: Long?,
+    nowTimeMs: Long,
+): InitialResumeSeekDecision {
+    if (initialSeekApplied) return InitialResumeSeekDecision.AlreadyComplete
+
+    val progressFraction = activeInitialProgressFraction
+        ?.takeIf { it > 0f }
+        ?.coerceIn(0f, 1f)
+
+    if (activeInitialPositionMs <= 0L && progressFraction != null && durationMs <= 0L) {
+        return InitialResumeSeekDecision.DeferTimeline
+    }
+
+    if (isLoading) return InitialResumeSeekDecision.WaitLoading
+
+    val targetMs = resolveInitialResumeTargetMs(
+        activeInitialPositionMs,
+        activeInitialProgressFraction,
+        durationMs,
+    ) ?: return InitialResumeSeekDecision.DeferTimeline
+
+    if (targetMs <= 0L) return InitialResumeSeekDecision.ConfirmComplete
+
+    if (seekAttempts >= InitialResumeSeekMaxAttempts) {
+        return InitialResumeSeekDecision.ConfirmComplete
+    }
+
+    val closeEnough =
+        abs(positionMs - targetMs) <= InitialResumeSeekPositionToleranceMs
+    if (closeEnough) return InitialResumeSeekDecision.ConfirmComplete
+
+    if (seekAttempts > 0 && lastSeekAttemptTimeMs != null) {
+        val sinceSeek = nowTimeMs - lastSeekAttemptTimeMs
+        if (sinceSeek < InitialResumeSeekRetryThrottleMs) {
+            return InitialResumeSeekDecision.Sleep(InitialResumeSeekRetryThrottleMs - sinceSeek)
+        }
+    }
+
+    return InitialResumeSeekDecision.Seek(targetMs)
+}
+
+/** Snapshot inputs for initial resume loop (fed by [androidx.compose.runtime.snapshotFlow] in [PlayerScreen]). */
+internal data class InitialResumeSeekInputs(
+    val initialSeekApplied: Boolean,
+    val isLoading: Boolean,
+    val durationMs: Long,
+    val positionMs: Long,
+    val controller: PlayerEngineController?,
+    val controllerSourceUrl: String?,
+)
+
+internal data class InitialResumeSeekMutableState(
+    var seekAttempts: Int = 0,
+    var lastSeekAttemptTimeMs: Long? = null,
+)
+
+/**
+ * Single polling step for the initial resume loop; updates [mutableState] when a seek is issued.
+ *
+ * [readInputs] is invoked each iteration so timeline/controller updates from Compose snapshots are visible.
+ */
+internal fun pollInitialResumeSeekStep(
+    activeSourceUrl: String,
+    activeInitialPositionMs: Long,
+    activeInitialProgressFraction: Float?,
+    readInputs: () -> InitialResumeSeekInputs,
+    mutableState: InitialResumeSeekMutableState,
+    nowTimeMs: Long,
+): InitialResumeSeekDecision {
+    val inputs = readInputs()
+    val controller = inputs.controller
+    if (controller == null || inputs.controllerSourceUrl != activeSourceUrl) {
+        return InitialResumeSeekDecision.WaitLoading
+    }
+
+    val decision = evaluateInitialResumeSeekDecision(
+        initialSeekApplied = inputs.initialSeekApplied,
+        isLoading = inputs.isLoading,
+        activeInitialPositionMs = activeInitialPositionMs,
+        activeInitialProgressFraction = activeInitialProgressFraction,
+        durationMs = inputs.durationMs,
+        positionMs = inputs.positionMs,
+        seekAttempts = mutableState.seekAttempts,
+        lastSeekAttemptTimeMs = mutableState.lastSeekAttemptTimeMs,
+        nowTimeMs = nowTimeMs,
+    )
+
+    return when (decision) {
+        is InitialResumeSeekDecision.Seek -> {
+            controller.seekTo(decision.positionMs)
+            mutableState.seekAttempts += 1
+            mutableState.lastSeekAttemptTimeMs = nowTimeMs
+            decision
+        }
+
+        else -> decision
     }
 }

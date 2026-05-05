@@ -28,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1190,42 +1191,64 @@ fun PlayerScreen(
             }
         }
 
+        val initialResumeSeekMutableState =
+            remember(activeSourceUrl, activeInitialPositionMs, activeInitialProgressFraction) {
+                InitialResumeSeekMutableState()
+            }
+
         LaunchedEffect(
             activeSourceUrl,
-            playerController,
-            playerControllerSourceUrl,
-            playbackSnapshot.isLoading,
-            playbackSnapshot.durationMs,
             activeInitialPositionMs,
             activeInitialProgressFraction,
-            initialSeekApplied,
+            playerController,
+            playerControllerSourceUrl,
         ) {
-            val controller = playerController ?: return@LaunchedEffect
-            if (playerControllerSourceUrl != activeSourceUrl) {
-                return@LaunchedEffect
-            }
-            if (initialSeekApplied || playbackSnapshot.isLoading) {
-                return@LaunchedEffect
-            }
-
-            when (
-                val action = resolveInitialResumeSeekAction(
-                    activeInitialPositionMs,
-                    activeInitialProgressFraction,
-                    playbackSnapshot.durationMs,
+            snapshotFlow {
+                InitialResumeSeekInputs(
+                    initialSeekApplied = initialSeekApplied,
+                    isLoading = playbackSnapshot.isLoading,
+                    durationMs = playbackSnapshot.durationMs,
+                    positionMs = playbackSnapshot.positionMs.coerceAtLeast(0L),
+                    controller = playerController,
+                    controllerSourceUrl = playerControllerSourceUrl,
                 )
-            ) {
-                InitialResumeSeekAction.NoSeekNeeded -> {
-                    initialSeekApplied = true
-                }
+            }.collectLatest { _ ->
+                while (!initialSeekApplied) {
+                    val now = System.currentTimeMillis()
+                    when (
+                        pollInitialResumeSeekStep(
+                            activeSourceUrl = activeSourceUrl,
+                            activeInitialPositionMs = activeInitialPositionMs,
+                            activeInitialProgressFraction = activeInitialProgressFraction,
+                            readInputs = {
+                                InitialResumeSeekInputs(
+                                    initialSeekApplied = initialSeekApplied,
+                                    isLoading = playbackSnapshot.isLoading,
+                                    durationMs = playbackSnapshot.durationMs,
+                                    positionMs = playbackSnapshot.positionMs.coerceAtLeast(0L),
+                                    controller = playerController,
+                                    controllerSourceUrl = playerControllerSourceUrl,
+                                )
+                            },
+                            mutableState = initialResumeSeekMutableState,
+                            nowTimeMs = now,
+                        )
+                    ) {
+                        InitialResumeSeekDecision.AlreadyComplete -> return@collectLatest
 
-                InitialResumeSeekAction.DeferUntilTimelineKnown -> {
-                    return@LaunchedEffect
-                }
+                        InitialResumeSeekDecision.ConfirmComplete -> {
+                            initialSeekApplied = true
+                            return@collectLatest
+                        }
 
-                is InitialResumeSeekAction.Seek -> {
-                    controller.seekTo(action.positionMs)
-                    initialSeekApplied = true
+                        InitialResumeSeekDecision.DeferTimeline,
+                        InitialResumeSeekDecision.WaitLoading,
+                        -> delay(50)
+
+                        is InitialResumeSeekDecision.Sleep -> delay(decision.ms.coerceAtLeast(1L))
+
+                        is InitialResumeSeekDecision.Seek -> Unit
+                    }
                 }
             }
         }
