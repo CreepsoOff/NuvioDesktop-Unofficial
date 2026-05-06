@@ -700,6 +700,14 @@ tasks.matching { it.name == "packageReleaseDmg" }.configureEach {
     finalizedBy(renameReleaseDmgArtifact)
 }
 
+tasks.matching { it.name == "run" }.configureEach {
+    if (this is JavaExec) {
+        System.getenv("DISPLAY")?.let { environment("DISPLAY", it) }
+        System.getenv("LIBGL_ALWAYS_SOFTWARE")?.let { environment("LIBGL_ALWAYS_SOFTWARE", it) }
+        System.getenv("MESA_GL_VERSION_OVERRIDE")?.let { environment("MESA_GL_VERSION_OVERRIDE", it) }
+    }
+}
+
 configurations.all {
     exclude(group = "androidx.media3", module = "media3-exoplayer")
     exclude(group = "androidx.media3", module = "media3-ui")
