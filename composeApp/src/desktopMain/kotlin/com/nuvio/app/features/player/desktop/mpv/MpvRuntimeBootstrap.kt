@@ -23,8 +23,14 @@ internal object MpvRuntimeBootstrap {
 
     @Volatile private var bootstrappedDirectory: String? = null
 
+    private val isLinux: Boolean
+        get() = System.getProperty("os.name")?.contains("Linux", ignoreCase = true) == true
+
     @Synchronized
     fun apply(runtime: MpvRuntimeResolution): MpvRuntimeBootstrapResult {
+        if (isLinux) {
+            return applyLinux(runtime)
+        }
         if (!isWindows) {
             return MpvRuntimeBootstrapResult(success = true, diagnostics = runtime.diagnostics)
         }
@@ -71,6 +77,56 @@ internal object MpvRuntimeBootstrap {
                     MpvRuntimeBootstrapResult(
                         success = false,
                         diagnostics = "System.load failed dll=${mediampDll.safePath()} runtime=${runtime.diagnostics}",
+                        error = throwable,
+                    )
+                }
+            },
+        )
+    }
+
+    private fun applyLinux(runtime: MpvRuntimeResolution): MpvRuntimeBootstrapResult {
+        val directory = runtime.directory
+        if (directory != null) {
+            prependJavaLibraryPath(directory)
+            val mediampSo = directory.resolve("libmediampv.so")
+            if (mediampSo.isFile) {
+                return runCatching {
+                    System.load(mediampSo.absolutePath)
+                }.fold(
+                    onSuccess = {
+                        bootstrappedDirectory = directory.absoluteFile.safePath()
+                        DesktopRuntimeLog.info("MPV runtime bootstrap loaded so=${mediampSo.safePath()}")
+                        MpvRuntimeBootstrapResult(success = true, diagnostics = "loaded=${mediampSo.safePath()}")
+                    },
+                    onFailure = { throwable ->
+                        if (throwable.message?.contains("already loaded", ignoreCase = true) == true) {
+                            bootstrappedDirectory = directory.absoluteFile.safePath()
+                            MpvRuntimeBootstrapResult(success = true, diagnostics = "already loaded so=${mediampSo.safePath()}")
+                        } else {
+                            MpvRuntimeBootstrapResult(
+                                success = false,
+                                diagnostics = "System.load failed so=${mediampSo.safePath()} runtime=${runtime.diagnostics}",
+                                error = throwable,
+                            )
+                        }
+                    },
+                )
+            }
+        }
+        return runCatching {
+            System.loadLibrary("mediampv")
+        }.fold(
+            onSuccess = {
+                DesktopRuntimeLog.info("MPV runtime bootstrap loaded mediampv via system loadLibrary")
+                MpvRuntimeBootstrapResult(success = true, diagnostics = "loaded via System.loadLibrary")
+            },
+            onFailure = { throwable ->
+                if (throwable.message?.contains("already loaded", ignoreCase = true) == true) {
+                    MpvRuntimeBootstrapResult(success = true, diagnostics = "already loaded via System.loadLibrary")
+                } else {
+                    MpvRuntimeBootstrapResult(
+                        success = false,
+                        diagnostics = "Linux loadLibrary failed: ${throwable.message} runtime=${runtime.diagnostics}",
                         error = throwable,
                     )
                 }
