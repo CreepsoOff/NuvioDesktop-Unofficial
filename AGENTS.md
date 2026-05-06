@@ -38,3 +38,6 @@ The `mediamp-mpv` submodule has native CMake tasks (`configureCMakeDesktop`, `bu
 - **Gradle configuration cache** is enabled. Add `--no-configuration-cache` if you hit cache issues after modifying `build.gradle.kts`.
 - The `full` Android flavor requires QuickJS `.aar` files in `composeApp/libs/`. Use `playstore` flavor for simpler builds.
 - The `mediamp` composite build is auto-included only when the submodule is properly initialized (checked by `settings.gradle.kts`).
+- **DISPLAY variable**: When running the Desktop app GUI, set `DISPLAY=:1` so Skiko can render to the virtual framebuffer.
+- **Android lint has pre-existing errors**: `lintPlaystoreDebug` reports MissingPermission and NewApi issues in the existing codebase. This does not indicate a setup problem.
+- **First Gradle run is slow** (~5 min) due to dependency downloads and configuration cache creation. Subsequent runs are much faster (~30s for incremental compiles).
