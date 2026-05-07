@@ -290,13 +290,14 @@ internal class MpvDesktopPlayerBackend private constructor(
             if (!canReceiveCommands()) return
             val handle = player.impl
             val colorHex = style.textColor.toMpvColorString()
-            val outline = if (style.outlineEnabled) 2.0 else 0.0
-            val subPos = 100 - style.bottomOffset
+            val outline = if (style.outlineEnabled) 1.65 else 0.0
+            val subPos = (100 - (style.bottomOffset / 2)).coerceIn(0, 150)
+            val mpvFontSize = (style.fontSizeSp * 3.0).coerceIn(24.0, 96.0)
             runCatching {
-                handle.option("sub-color", colorHex)
-                handle.setMpvProperty("sub-border-size", outline)
-                handle.setMpvProperty("sub-font-size", style.fontSizeSp.toDouble())
-                handle.setMpvProperty("sub-pos", subPos)
+                handle.setPropertyString("sub-color", colorHex)
+                handle.setPropertyDouble("sub-border-size", outline)
+                handle.setPropertyDouble("sub-font-size", mpvFontSize)
+                handle.setPropertyInt("sub-pos", subPos)
             }.onFailure { DesktopRuntimeLog.error("MPV applySubtitleStyle failed", it) }
         }
 

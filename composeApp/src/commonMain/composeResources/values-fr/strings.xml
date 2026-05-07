@@ -1194,4 +1194,8 @@
     <string name="unit_bytes_kb">Ko</string>
     <string name="unit_bytes_mb">Mo</string>
     <string name="unit_bytes_gb">Go</string>
+    <string name="settings_playback_intro_submit_enabled">Activer la soumission d\'intros</string>
+    <string name="settings_playback_intro_submit_enabled_description">Afficher un bouton pour soumettre les timestamps d\'intro/outro à la base de données communautaire.</string>
+    <string name="settings_playback_introdb_api_key">Clé API IntroDB</string>
+    <string name="settings_playback_introdb_api_key_description">Clé API facultative pour IntroDB, utilisée pour la détection des intros/outros.</string>
 </resources>

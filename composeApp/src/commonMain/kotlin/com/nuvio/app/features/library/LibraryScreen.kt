@@ -170,9 +170,7 @@ fun LibraryScreen(
                     onPosterClick = onPosterClick,
                     onSectionViewAllClick = onSectionViewAllClick,
                     onPosterLongClick = { item ->
-                        if (!isTraktSource) {
-                            pendingRemovalItem = item
-                        }
+                        pendingRemovalItem = item
                     },
                 )
             }
@@ -188,7 +186,19 @@ fun LibraryScreen(
         confirmText = stringResource(Res.string.library_remove_confirm),
         dismissText = stringResource(Res.string.action_cancel),
         onConfirm = {
-            pendingRemovalItem?.id?.let(LibraryRepository::remove)
+            pendingRemovalItem?.let { item ->
+                if (isTraktSource) {
+                    coroutineScope.launch {
+                        com.nuvio.app.features.trakt.TraktLibraryRepository.removeFromWatchlist(
+                            type = item.type,
+                            traktId = item.id,
+                        )
+                        LibraryRepository.pullFromServer(ProfileRepository.activeProfileId)
+                    }
+                } else {
+                    LibraryRepository.remove(item.id)
+                }
+            }
             pendingRemovalItem = null
         },
         onDismiss = { pendingRemovalItem = null },

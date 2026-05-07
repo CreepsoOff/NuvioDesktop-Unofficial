@@ -551,6 +551,12 @@ object TraktLibraryRepository {
         )
     }
 
+    suspend fun removeFromWatchlist(type: String, traktId: String) {
+        val headers = TraktAuthRepository.authorizedHeaders() ?: return
+        val item = LibraryItem(id = traktId, name = "", type = type, savedAtEpochMs = 0L)
+        removeFromWatchlist(headers, item)
+    }
+
     private suspend fun removeFromWatchlist(headers: Map<String, String>, item: LibraryItem) {
         val body = buildMutationBody(item) ?: return
         httpPostJsonWithHeaders(
