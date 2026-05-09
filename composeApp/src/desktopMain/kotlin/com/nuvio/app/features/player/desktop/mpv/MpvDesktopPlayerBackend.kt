@@ -225,7 +225,7 @@ internal class MpvDesktopPlayerBackend private constructor(
     }
 
     private inner class MpvController : PlayerEngineController {
-        override fun release() = releaseSoft()
+        fun release() = releaseSoft()
 
         override fun play() {
             if (!canReceiveCommands()) return
@@ -438,7 +438,7 @@ internal class MpvDesktopPlayerBackend private constructor(
             }.onFailure { DesktopRuntimeLog.error("MPV applySubtitleStyle failed", it) }
         }
 
-        override fun switchSource(url: String, audioUrl: String?, headersJson: String?) {
+        fun switchSource(url: String, audioUrl: String?, headersJson: String?) {
             if (!canReceiveCommands()) return
             val previous = currentRequest ?: return
             val headers = parseHeadersJson(headersJson).ifEmpty { previous.sourceHeaders }

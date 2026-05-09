@@ -10,12 +10,6 @@ interface PlayerGestureController {
     fun setVolume(level: Float): PlayerAudioLevel?
 }
 
-interface PlayerFullscreenController {
-    val isFullscreenSupported: Boolean
-    val isFullscreen: Boolean
-    fun toggleFullscreen()
-}
-
 data class PlayerAudioLevel(
     val fraction: Float,
     val isMuted: Boolean,
@@ -34,17 +28,4 @@ expect fun ManagePlayerPictureInPicture(
 )
 
 @Composable
-expect fun ManagePlayerCursorVisibility(visible: Boolean)
-
-@Composable
 expect fun rememberPlayerGestureController(): PlayerGestureController?
-
-@Composable
-expect fun rememberPlayerFullscreenController(): PlayerFullscreenController
-
-@Composable
-expect fun ManageFullscreenKeyboardShortcuts(isHomeRouteActive: Boolean)
-
-expect val usesNativePlayerChrome: Boolean
-
-expect val usesAnimatedPlayerChrome: Boolean

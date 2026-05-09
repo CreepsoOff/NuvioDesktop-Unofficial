@@ -23,8 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Forward10
-import androidx.compose.material.icons.rounded.Fullscreen
-import androidx.compose.material.icons.rounded.FullscreenExit
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.Replay10
@@ -71,10 +69,7 @@ internal fun PlayerControlsShell(
     metrics: PlayerLayoutMetrics,
     resizeMode: PlayerResizeMode,
     isLocked: Boolean,
-    isFullscreenSupported: Boolean,
-    isFullscreen: Boolean,
     onLockToggle: () -> Unit,
-    onFullscreenClick: () -> Unit,
     onBack: () -> Unit,
     onTogglePlayback: () -> Unit,
     onSeekBack: () -> Unit,
@@ -136,11 +131,8 @@ internal fun PlayerControlsShell(
                 episodeTitle = episodeTitle,
                 metrics = metrics,
                 isLocked = isLocked,
-                isFullscreenSupported = isFullscreenSupported,
-                isFullscreen = isFullscreen,
                 onSubmitIntroClick = onSubmitIntroClick,
                 onLockToggle = onLockToggle,
-                onFullscreenClick = onFullscreenClick,
                 onBack = onBack,
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -197,11 +189,8 @@ private fun PlayerHeader(
     episodeTitle: String?,
     metrics: PlayerLayoutMetrics,
     isLocked: Boolean,
-    isFullscreenSupported: Boolean,
-    isFullscreen: Boolean,
     onSubmitIntroClick: (() -> Unit)?,
     onLockToggle: () -> Unit,
-    onFullscreenClick: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -276,19 +265,6 @@ private fun PlayerHeader(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (isFullscreenSupported) {
-                    PlayerHeaderIconButton(
-                        icon = if (isFullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
-                        contentDescription = if (isFullscreen) {
-                            stringResource(Res.string.compose_player_exit_fullscreen)
-                        } else {
-                            stringResource(Res.string.compose_player_enter_fullscreen)
-                        },
-                        buttonSize = metrics.headerIconSize + 16.dp,
-                        iconSize = metrics.headerIconSize,
-                        onClick = onFullscreenClick,
-                    )
-                }
                 if (onSubmitIntroClick != null) {
                     PlayerHeaderIconButton(
                         icon = Icons.Rounded.Flag,

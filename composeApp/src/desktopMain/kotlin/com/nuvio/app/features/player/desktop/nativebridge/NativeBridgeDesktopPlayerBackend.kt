@@ -277,30 +277,30 @@ internal class NativeBridgeDesktopPlayerBackend private constructor(
             }
             bridge.nuvio_player_clear_external_subtitle_and_select(playerPtr, trackId)
         }
-        override fun release() = releaseSoft()
-        override fun setOnCloseCallback(callback: () -> Unit) { onCloseCallback = callback }
-        override fun setOnAddonSubtitlesFetchCallback(callback: () -> Unit) { onAddonSubtitlesFetchCallback = callback }
-        override fun setOnSourcesRequestedCallback(callback: () -> Unit) { onSourcesRequestedCallback = callback }
-        override fun setOnSourceStreamSelectedCallback(callback: (String) -> Unit) { onSourceStreamSelectedCallback = callback }
-        override fun setOnSourceFilterChangedCallback(callback: (String?) -> Unit) { onSourceFilterChangedCallback = callback }
-        override fun setOnSourceReloadCallback(callback: () -> Unit) { onSourceReloadCallback = callback }
-        override fun setOnEpisodesRequestedCallback(callback: () -> Unit) { onEpisodesRequestedCallback = callback }
-        override fun setOnEpisodeSelectedCallback(callback: (String) -> Unit) { onEpisodeSelectedCallback = callback }
-        override fun setOnEpisodeStreamSelectedCallback(callback: (String) -> Unit) { onEpisodeStreamSelectedCallback = callback }
-        override fun setOnEpisodeFilterChangedCallback(callback: (String?) -> Unit) { onEpisodeFilterChangedCallback = callback }
-        override fun setOnEpisodeReloadCallback(callback: () -> Unit) { onEpisodeReloadCallback = callback }
-        override fun setOnEpisodeBackCallback(callback: () -> Unit) { onEpisodeBackCallback = callback }
-        override fun pushAddonSubtitles(subtitles: List<AddonSubtitle>, isLoading: Boolean) = runIfOpen {
+        fun release() = releaseSoft()
+        fun setOnCloseCallback(callback: () -> Unit) { onCloseCallback = callback }
+        fun setOnAddonSubtitlesFetchCallback(callback: () -> Unit) { onAddonSubtitlesFetchCallback = callback }
+        fun setOnSourcesRequestedCallback(callback: () -> Unit) { onSourcesRequestedCallback = callback }
+        fun setOnSourceStreamSelectedCallback(callback: (String) -> Unit) { onSourceStreamSelectedCallback = callback }
+        fun setOnSourceFilterChangedCallback(callback: (String?) -> Unit) { onSourceFilterChangedCallback = callback }
+        fun setOnSourceReloadCallback(callback: () -> Unit) { onSourceReloadCallback = callback }
+        fun setOnEpisodesRequestedCallback(callback: () -> Unit) { onEpisodesRequestedCallback = callback }
+        fun setOnEpisodeSelectedCallback(callback: (String) -> Unit) { onEpisodeSelectedCallback = callback }
+        fun setOnEpisodeStreamSelectedCallback(callback: (String) -> Unit) { onEpisodeStreamSelectedCallback = callback }
+        fun setOnEpisodeFilterChangedCallback(callback: (String?) -> Unit) { onEpisodeFilterChangedCallback = callback }
+        fun setOnEpisodeReloadCallback(callback: () -> Unit) { onEpisodeReloadCallback = callback }
+        fun setOnEpisodeBackCallback(callback: () -> Unit) { onEpisodeBackCallback = callback }
+        fun pushAddonSubtitles(subtitles: List<AddonSubtitle>, isLoading: Boolean) = runIfOpen {
             bridge.nuvio_player_set_addon_subtitles_loading(playerPtr, isLoading)
             if (!isLoading) {
                 bridge.nuvio_player_clear_addon_subtitles(playerPtr)
                 subtitles.forEach { bridge.nuvio_player_add_addon_subtitle(playerPtr, it.id, it.url, it.language, it.display) }
             }
         }
-        override fun pushSourceData(streams: List<StreamItem>, groups: List<AddonStreamGroup>, loading: Boolean, selectedFilter: String?, currentStreamUrl: String?) = Unit
-        override fun pushEpisodes(episodes: List<MetaVideo>) = Unit
-        override fun pushEpisodeStreamsData(streams: List<StreamItem>, groups: List<AddonStreamGroup>, loading: Boolean, selectedFilter: String?, currentStreamUrl: String?) = Unit
-        override fun switchSource(url: String, audioUrl: String?, headersJson: String?) = runIfOpen { bridge.nuvio_player_load_file(playerPtr, url, audioUrl, headersJson) }
+        fun pushSourceData(streams: List<StreamItem>, groups: List<AddonStreamGroup>, loading: Boolean, selectedFilter: String?, currentStreamUrl: String?) = Unit
+        fun pushEpisodes(episodes: List<MetaVideo>) = Unit
+        fun pushEpisodeStreamsData(streams: List<StreamItem>, groups: List<AddonStreamGroup>, loading: Boolean, selectedFilter: String?, currentStreamUrl: String?) = Unit
+        fun switchSource(url: String, audioUrl: String?, headersJson: String?) = runIfOpen { bridge.nuvio_player_load_file(playerPtr, url, audioUrl, headersJson) }
 
         private fun runIfOpen(block: () -> Unit) {
             if (!closed) runCatching(block).onFailure { DesktopRuntimeLog.error("Native bridge controller command failed", it) }

@@ -78,9 +78,6 @@ actual fun ManagePlayerPictureInPicture(
 }
 
 @Composable
-actual fun ManagePlayerCursorVisibility(visible: Boolean) = Unit
-
-@Composable
 actual fun rememberPlayerGestureController(): PlayerGestureController? {
     val context = LocalContext.current
     val activity = context.findActivity() ?: return null
@@ -101,23 +98,6 @@ actual fun rememberPlayerGestureController(): PlayerGestureController? {
 
     return controller
 }
-
-@Composable
-actual fun rememberPlayerFullscreenController(): PlayerFullscreenController =
-    remember {
-        object : PlayerFullscreenController {
-            override val isFullscreenSupported: Boolean = false
-            override val isFullscreen: Boolean = false
-            override fun toggleFullscreen() = Unit
-        }
-    }
-
-@Composable
-actual fun ManageFullscreenKeyboardShortcuts(isHomeRouteActive: Boolean) = Unit
-
-actual val usesNativePlayerChrome: Boolean = false
-
-actual val usesAnimatedPlayerChrome: Boolean = true
 
 private tailrec fun Context.findActivity(): Activity? =
     when (this) {

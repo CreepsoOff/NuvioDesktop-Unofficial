@@ -5,18 +5,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.window.WindowPlacement
-import com.nuvio.app.LocalDesktopWindow
 import com.nuvio.app.core.storage.ProfileScopedKey
 import com.nuvio.app.core.sync.decodeSyncBoolean
 import com.nuvio.app.core.sync.decodeSyncFloat
@@ -33,14 +29,6 @@ import com.nuvio.app.features.player.desktop.DesktopPlayerSurfaceHost
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.streams.AddonStreamGroup
 import com.nuvio.app.features.streams.StreamItem
-import java.awt.Cursor
-import java.awt.Frame
-import java.awt.KeyEventDispatcher
-import java.awt.KeyboardFocusManager
-import java.awt.Point
-import java.awt.Toolkit
-import java.awt.event.KeyEvent
-import java.awt.image.BufferedImage
 import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonObject
@@ -236,7 +224,7 @@ private fun MacOSPlayerSurface(
                 )
             }
 
-            override fun setMetadata(
+            fun setMetadata(
                 title: String,
                 streamTitle: String,
                 providerName: String,
@@ -253,20 +241,20 @@ private fun MacOSPlayerSurface(
                 )
             }
 
-            override fun setPlayerFlags(hasVideoId: Boolean, isSeries: Boolean) {
+            fun setPlayerFlags(hasVideoId: Boolean, isSeries: Boolean) {
                 bridge.nuvio_player_set_has_video_id(playerPtr, hasVideoId)
                 bridge.nuvio_player_set_is_series(playerPtr, isSeries)
             }
 
-            override fun showSkipButton(type: String, endTimeMs: Long) {
+            fun showSkipButton(type: String, endTimeMs: Long) {
                 bridge.nuvio_player_show_skip_button(playerPtr, type, endTimeMs)
             }
 
-            override fun hideSkipButton() {
+            fun hideSkipButton() {
                 bridge.nuvio_player_hide_skip_button(playerPtr)
             }
 
-            override fun showNextEpisode(
+            fun showNextEpisode(
                 season: Int,
                 episode: Int,
                 title: String,
@@ -276,19 +264,19 @@ private fun MacOSPlayerSurface(
                 bridge.nuvio_player_show_next_episode(playerPtr, season, episode, title, thumbnail, hasAired)
             }
 
-            override fun hideNextEpisode() {
+            fun hideNextEpisode() {
                 bridge.nuvio_player_hide_next_episode(playerPtr)
             }
 
-            override fun setOnCloseCallback(callback: () -> Unit) {
+            fun setOnCloseCallback(callback: () -> Unit) {
                 onCloseCallback = callback
             }
 
-            override fun setOnAddonSubtitlesFetchCallback(callback: () -> Unit) {
+            fun setOnAddonSubtitlesFetchCallback(callback: () -> Unit) {
                 onAddonSubtitlesFetchCallback = callback
             }
 
-            override fun pushAddonSubtitles(subtitles: List<AddonSubtitle>, isLoading: Boolean) {
+            fun pushAddonSubtitles(subtitles: List<AddonSubtitle>, isLoading: Boolean) {
                 bridge.nuvio_player_set_addon_subtitles_loading(playerPtr, isLoading)
                 if (!isLoading) {
                     bridge.nuvio_player_clear_addon_subtitles(playerPtr)
@@ -300,47 +288,47 @@ private fun MacOSPlayerSurface(
                 }
             }
 
-            override fun setOnSourcesRequestedCallback(callback: () -> Unit) {
+            fun setOnSourcesRequestedCallback(callback: () -> Unit) {
                 onSourcesRequestedCallback = callback
             }
 
-            override fun setOnSourceStreamSelectedCallback(callback: (String) -> Unit) {
+            fun setOnSourceStreamSelectedCallback(callback: (String) -> Unit) {
                 onSourceStreamSelectedCallback = callback
             }
 
-            override fun setOnSourceFilterChangedCallback(callback: (String?) -> Unit) {
+            fun setOnSourceFilterChangedCallback(callback: (String?) -> Unit) {
                 onSourceFilterChangedCallback = callback
             }
 
-            override fun setOnSourceReloadCallback(callback: () -> Unit) {
+            fun setOnSourceReloadCallback(callback: () -> Unit) {
                 onSourceReloadCallback = callback
             }
 
-            override fun setOnEpisodesRequestedCallback(callback: () -> Unit) {
+            fun setOnEpisodesRequestedCallback(callback: () -> Unit) {
                 onEpisodesRequestedCallback = callback
             }
 
-            override fun setOnEpisodeSelectedCallback(callback: (String) -> Unit) {
+            fun setOnEpisodeSelectedCallback(callback: (String) -> Unit) {
                 onEpisodeSelectedCallback = callback
             }
 
-            override fun setOnEpisodeStreamSelectedCallback(callback: (String) -> Unit) {
+            fun setOnEpisodeStreamSelectedCallback(callback: (String) -> Unit) {
                 onEpisodeStreamSelectedCallback = callback
             }
 
-            override fun setOnEpisodeFilterChangedCallback(callback: (String?) -> Unit) {
+            fun setOnEpisodeFilterChangedCallback(callback: (String?) -> Unit) {
                 onEpisodeFilterChangedCallback = callback
             }
 
-            override fun setOnEpisodeReloadCallback(callback: () -> Unit) {
+            fun setOnEpisodeReloadCallback(callback: () -> Unit) {
                 onEpisodeReloadCallback = callback
             }
 
-            override fun setOnEpisodeBackCallback(callback: () -> Unit) {
+            fun setOnEpisodeBackCallback(callback: () -> Unit) {
                 onEpisodeBackCallback = callback
             }
 
-            override fun pushSourceData(
+            fun pushSourceData(
                 streams: List<StreamItem>,
                 groups: List<AddonStreamGroup>,
                 loading: Boolean,
@@ -365,7 +353,7 @@ private fun MacOSPlayerSurface(
                 }
             }
 
-            override fun pushEpisodes(episodes: List<MetaVideo>) {
+            fun pushEpisodes(episodes: List<MetaVideo>) {
                 bridge.nuvio_player_clear_episodes(playerPtr)
                 episodes.forEach { ep ->
                     bridge.nuvio_player_add_episode(
@@ -375,7 +363,7 @@ private fun MacOSPlayerSurface(
                 }
             }
 
-            override fun pushEpisodeStreamsData(
+            fun pushEpisodeStreamsData(
                 streams: List<StreamItem>,
                 groups: List<AddonStreamGroup>,
                 loading: Boolean,
@@ -400,11 +388,11 @@ private fun MacOSPlayerSurface(
                 }
             }
 
-            override fun showEpisodeStreamsView(season: Int?, episode: Int?, title: String?) {
+            fun showEpisodeStreamsView(season: Int?, episode: Int?, title: String?) {
                 bridge.nuvio_player_show_episode_streams(playerPtr, season ?: 0, episode ?: 0, title)
             }
 
-            override fun switchSource(url: String, audioUrl: String?, headersJson: String?) {
+            fun switchSource(url: String, audioUrl: String?, headersJson: String?) {
                 bridge.nuvio_player_load_file(playerPtr, url, audioUrl, headersJson)
             }
         }
@@ -913,143 +901,4 @@ actual fun ManagePlayerPictureInPicture(
 ) = Unit
 
 @Composable
-actual fun ManagePlayerCursorVisibility(visible: Boolean) {
-    val window = LocalDesktopWindow.current
-    val hiddenCursor = remember { createHiddenPlayerCursor() }
-
-    DisposableEffect(window) {
-        val previousCursor = window?.cursor
-        onDispose {
-            if (window != null && previousCursor != null) {
-                window.cursor = previousCursor
-            }
-        }
-    }
-
-    SideEffect {
-        window?.cursor = if (visible) Cursor.getDefaultCursor() else hiddenCursor
-    }
-}
-
-@Composable
 actual fun rememberPlayerGestureController(): PlayerGestureController? = null
-
-@Composable
-actual fun rememberPlayerFullscreenController(): PlayerFullscreenController {
-    val window = LocalDesktopWindow.current as? ComposeWindow
-    var isFullscreen by remember(window) {
-        mutableStateOf(window?.placement == WindowPlacement.Fullscreen)
-    }
-
-    LaunchedEffect(window) {
-        while (true) {
-            isFullscreen = window?.isPlayerFullscreen() == true
-            delay(250)
-        }
-    }
-
-    return object : PlayerFullscreenController {
-        override val isFullscreenSupported: Boolean
-            get() = window != null
-
-        override val isFullscreen: Boolean
-            get() = isFullscreen
-
-        override fun toggleFullscreen() {
-            val composeWindow = window ?: return
-            composeWindow.toggleDesktopFullscreen()
-            isFullscreen = composeWindow.isPlayerFullscreen()
-        }
-    }
-}
-
-@Composable
-actual fun ManageFullscreenKeyboardShortcuts(isHomeRouteActive: Boolean) {
-    val window = LocalDesktopWindow.current as? ComposeWindow
-    val currentIsHomeRouteActive by rememberUpdatedState(isHomeRouteActive)
-
-    DisposableEffect(window) {
-        val composeWindow = window ?: return@DisposableEffect onDispose {}
-        val keyboardFocusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
-        val dispatcher = KeyEventDispatcher { event ->
-            if (event.id != KeyEvent.KEY_RELEASED) {
-                return@KeyEventDispatcher false
-            }
-
-            when (event.keyCode) {
-                KeyEvent.VK_F11 -> {
-                    composeWindow.toggleDesktopFullscreen()
-                    true
-                }
-
-                KeyEvent.VK_ESCAPE -> {
-                    if (currentIsHomeRouteActive && composeWindow.isPlayerFullscreen()) {
-                        composeWindow.exitDesktopFullscreen()
-                        true
-                    } else {
-                        false
-                    }
-                }
-
-                else -> false
-            }
-        }
-
-        keyboardFocusManager.addKeyEventDispatcher(dispatcher)
-        onDispose {
-            keyboardFocusManager.removeKeyEventDispatcher(dispatcher)
-        }
-    }
-}
-
-private object DesktopFullscreenState {
-    var previousPlacement: WindowPlacement = WindowPlacement.Floating
-}
-
-private fun ComposeWindow.toggleDesktopFullscreen() {
-    if (isPlayerFullscreen()) {
-        exitDesktopFullscreen()
-    } else {
-        enterDesktopFullscreen()
-    }
-}
-
-private fun ComposeWindow.enterDesktopFullscreen() {
-    DesktopFullscreenState.previousPlacement = placement.takeIf { it != WindowPlacement.Fullscreen }
-        ?: WindowPlacement.Floating
-    placement = WindowPlacement.Fullscreen
-}
-
-private fun ComposeWindow.exitDesktopFullscreen() {
-    exitPlayerFullscreen(DesktopFullscreenState.previousPlacement)
-}
-
-private fun ComposeWindow.isPlayerFullscreen(): Boolean {
-    val fullScreenWindow = graphicsConfiguration?.device?.fullScreenWindow
-    return placement == WindowPlacement.Fullscreen || fullScreenWindow === this
-}
-
-private fun ComposeWindow.exitPlayerFullscreen(previousPlacement: WindowPlacement) {
-    val device = graphicsConfiguration?.device
-    if (device?.fullScreenWindow === this) {
-        device.fullScreenWindow = null
-    }
-
-    val targetPlacement = previousPlacement.takeIf { it != WindowPlacement.Fullscreen }
-        ?: WindowPlacement.Floating
-    placement = targetPlacement
-
-    if (targetPlacement == WindowPlacement.Floating) {
-        extendedState = extendedState and Frame.MAXIMIZED_BOTH.inv()
-    }
-}
-
-private fun createHiddenPlayerCursor(): Cursor {
-    val image = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
-    return Toolkit.getDefaultToolkit().createCustomCursor(image, Point(0, 0), "nuvio-player-hidden-cursor")
-}
-
-actual val usesNativePlayerChrome: Boolean
-    get() = isMacOS
-
-actual val usesAnimatedPlayerChrome: Boolean = false

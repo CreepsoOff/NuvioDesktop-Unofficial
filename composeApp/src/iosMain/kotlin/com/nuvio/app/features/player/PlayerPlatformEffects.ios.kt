@@ -52,9 +52,6 @@ actual fun ManagePlayerPictureInPicture(
 ) = Unit
 
 @Composable
-actual fun ManagePlayerCursorVisibility(visible: Boolean) = Unit
-
-@Composable
 actual fun rememberPlayerGestureController(): PlayerGestureController? {
     val controller = remember { IOSPlayerGestureController() }
 
@@ -66,23 +63,6 @@ actual fun rememberPlayerGestureController(): PlayerGestureController? {
 
     return controller
 }
-
-@Composable
-actual fun rememberPlayerFullscreenController(): PlayerFullscreenController =
-    remember {
-        object : PlayerFullscreenController {
-            override val isFullscreenSupported: Boolean = false
-            override val isFullscreen: Boolean = false
-            override fun toggleFullscreen() = Unit
-        }
-    }
-
-@Composable
-actual fun ManageFullscreenKeyboardShortcuts(isHomeRouteActive: Boolean) = Unit
-
-actual val usesNativePlayerChrome: Boolean = false
-
-actual val usesAnimatedPlayerChrome: Boolean = true
 
 private class IOSPlayerGestureController : PlayerGestureController {
     private val volumeView = MPVolumeView().apply {

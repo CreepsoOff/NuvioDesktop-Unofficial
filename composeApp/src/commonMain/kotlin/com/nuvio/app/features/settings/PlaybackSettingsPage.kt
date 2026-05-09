@@ -55,7 +55,6 @@ import com.nuvio.app.features.player.AudioLanguageOption
 import com.nuvio.app.features.player.AvailableLanguageOptions
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.SubtitleLanguageOption
-import com.nuvio.app.features.player.platformShowsAndroidLibassToggle
 import com.nuvio.app.features.player.formatPlaybackSpeedLabel
 import com.nuvio.app.features.player.languageLabelForCode
 import com.nuvio.app.features.plugins.PluginsUiState
@@ -448,7 +447,7 @@ private fun PlaybackSettingsSection(
             }
         }
 
-        if (platformShowsAndroidLibassToggle) {
+        if (false) { // platformShowsAndroidLibassToggle removed per upstream
             SettingsSection(
                 title = stringResource(Res.string.settings_playback_section_subtitle_rendering),
                 isTablet = isTablet,
