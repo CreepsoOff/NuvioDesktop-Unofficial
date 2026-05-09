@@ -983,7 +983,7 @@ actual fun ManageFullscreenKeyboardShortcuts(isHomeRouteActive: Boolean) {
                 }
 
                 KeyEvent.VK_ESCAPE -> {
-                    if (currentIsHomeRouteActive && composeWindow.isPlayerFullscreen()) {
+                    if (composeWindow.isPlayerFullscreen()) {
                         composeWindow.exitDesktopFullscreen()
                         true
                     } else {

@@ -269,7 +269,13 @@ internal class MpvDesktopPlayerBackend private constructor(
 
         override fun setPlaybackSpeed(speed: Float) {
             if (!canReceiveCommands()) return
-            player.features[PlaybackSpeed]?.set(speed.coerceIn(0.25f, 4.0f))
+            val target = speed.coerceIn(0.25f, 4.0f)
+            val result = runCatching {
+                player.features[PlaybackSpeed]?.set(target)
+                player.impl.setMpvProperty("speed", target)
+            }
+            DesktopRuntimeLog.info("MPV controller setPlaybackSpeed target=$target result=${result.getOrNull()} after=${snapshotForLog()}")
+            result.onFailure { DesktopRuntimeLog.error("MPV controller setPlaybackSpeed failed target=$target", it) }
         }
 
         override fun getAudioTracks(): List<AudioTrack> =

@@ -54,10 +54,13 @@ import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.player.AudioLanguageOption
 import com.nuvio.app.features.player.AvailableLanguageOptions
 import com.nuvio.app.features.player.PlayerSettingsRepository
+import com.nuvio.app.features.player.PlayerKeyboardShortcutsRepository
+import com.nuvio.app.features.player.nextShortcutOption
 import com.nuvio.app.features.player.SubtitleLanguageOption
 import com.nuvio.app.features.player.platformShowsAndroidLibassToggle
 import com.nuvio.app.features.player.formatPlaybackSpeedLabel
 import com.nuvio.app.features.player.languageLabelForCode
+import com.nuvio.app.isDesktop
 import com.nuvio.app.features.plugins.PluginsUiState
 import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.streams.StreamAutoPlayMode
@@ -221,6 +224,61 @@ private fun PlaybackSettingsSection(
                         description = formatPlaybackSpeedLabel(holdToSpeedValue),
                         isTablet = isTablet,
                         onClick = { showHoldToSpeedValueDialog = true },
+                    )
+                }
+            }
+        }
+
+        if (isDesktop) {
+            PlayerKeyboardShortcutsRepository.ensureLoaded()
+            val keyboardShortcutsUiState by PlayerKeyboardShortcutsRepository.uiState.collectAsStateWithLifecycle()
+            SettingsSection(
+                title = stringResource(Res.string.settings_playback_section_keyboard_shortcuts),
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.settings_playback_shortcut_play_pause),
+                        description = keyboardShortcutsUiState.playPauseKey,
+                        isTablet = isTablet,
+                        onClick = {
+                            PlayerKeyboardShortcutsRepository.setPlayPauseKey(
+                                nextShortcutOption(keyboardShortcutsUiState.playPauseKey),
+                            )
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.settings_playback_shortcut_seek_forward),
+                        description = keyboardShortcutsUiState.seekForwardKey,
+                        isTablet = isTablet,
+                        onClick = {
+                            PlayerKeyboardShortcutsRepository.setSeekForwardKey(
+                                nextShortcutOption(keyboardShortcutsUiState.seekForwardKey),
+                            )
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.settings_playback_shortcut_seek_backward),
+                        description = keyboardShortcutsUiState.seekBackwardKey,
+                        isTablet = isTablet,
+                        onClick = {
+                            PlayerKeyboardShortcutsRepository.setSeekBackwardKey(
+                                nextShortcutOption(keyboardShortcutsUiState.seekBackwardKey),
+                            )
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.settings_playback_shortcut_toggle_fullscreen),
+                        description = keyboardShortcutsUiState.toggleFullscreenKey,
+                        isTablet = isTablet,
+                        onClick = {
+                            PlayerKeyboardShortcutsRepository.setToggleFullscreenKey(
+                                nextShortcutOption(keyboardShortcutsUiState.toggleFullscreenKey),
+                            )
+                        },
                     )
                 }
             }

@@ -155,6 +155,10 @@ fun PlayerScreen(
         PlayerSettingsRepository.ensureLoaded()
         PlayerSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
+    val keyboardShortcutsUiState by remember {
+        PlayerKeyboardShortcutsRepository.ensureLoaded()
+        PlayerKeyboardShortcutsRepository.uiState
+    }.collectAsStateWithLifecycle()
     val metaScreenSettingsUiState by remember {
         MetaScreenSettingsRepository.ensureLoaded()
         MetaScreenSettingsRepository.uiState
@@ -1536,11 +1540,36 @@ fun PlayerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyUp && event.key == Key.F) {
-                        toggleFullscreen()
-                        true
-                    } else {
-                        false
+                    if (event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
+                    when {
+                        PlayerKeyboardShortcutsRepository.keyMatches(keyboardShortcutsUiState.toggleFullscreenKey, event.key) -> {
+                            toggleFullscreen()
+                            true
+                        }
+
+                        PlayerKeyboardShortcutsRepository.keyMatches(keyboardShortcutsUiState.playPauseKey, event.key) -> {
+                            if (playbackSnapshot.isPlaying) {
+                                playerController?.pause()
+                            } else {
+                                playerController?.play()
+                            }
+                            revealPlayerChrome()
+                            true
+                        }
+
+                        PlayerKeyboardShortcutsRepository.keyMatches(keyboardShortcutsUiState.seekForwardKey, event.key) -> {
+                            seekBy(10_000L)
+                            revealPlayerChrome()
+                            true
+                        }
+
+                        PlayerKeyboardShortcutsRepository.keyMatches(keyboardShortcutsUiState.seekBackwardKey, event.key) -> {
+                            seekBy(-10_000L)
+                            revealPlayerChrome()
+                            true
+                        }
+
+                        else -> false
                     }
                 }
                 .focusRequester(playerFocusRequester)
