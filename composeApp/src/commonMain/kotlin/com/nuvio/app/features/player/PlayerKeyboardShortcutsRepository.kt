@@ -64,7 +64,10 @@ object PlayerKeyboardShortcutsRepository {
         publish()
     }
 
-    fun keyMatches(expected: String, key: Key): Boolean = normalizeKeyName(expected) == normalizeKeyName(keyNameForComposeKey(key))
+    fun keyMatches(expected: String, key: Key): Boolean = keyMatchesNormalized(normalizeKeyName(expected), key)
+
+    fun keyMatchesNormalized(normalizedExpected: String, key: Key): Boolean =
+        normalizedExpected == normalizeKeyName(keyNameForComposeKey(key))
 
     private fun publish() {
         _uiState.value = PlayerKeyboardShortcutsUiState(
@@ -108,6 +111,7 @@ internal fun keyNameForComposeKey(key: Key): String = when (key) {
     Key.J -> "J"
     Key.K -> "K"
     Key.L -> "L"
+    // Fallback assumes Compose keeps the current Key.toString() format.
     else -> key.toString().removePrefix("Key(").removeSuffix(")")
 }
 

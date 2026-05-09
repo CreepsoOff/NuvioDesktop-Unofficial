@@ -1536,18 +1536,31 @@ fun PlayerScreen(
             playerFocusRequester.requestFocus()
         }
 
+        val normalizedFullscreenKey = remember(keyboardShortcutsUiState.toggleFullscreenKey) {
+            normalizeKeyName(keyboardShortcutsUiState.toggleFullscreenKey)
+        }
+        val normalizedPlayPauseKey = remember(keyboardShortcutsUiState.playPauseKey) {
+            normalizeKeyName(keyboardShortcutsUiState.playPauseKey)
+        }
+        val normalizedSeekForwardKey = remember(keyboardShortcutsUiState.seekForwardKey) {
+            normalizeKeyName(keyboardShortcutsUiState.seekForwardKey)
+        }
+        val normalizedSeekBackwardKey = remember(keyboardShortcutsUiState.seekBackwardKey) {
+            normalizeKeyName(keyboardShortcutsUiState.seekBackwardKey)
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
                     when {
-                        PlayerKeyboardShortcutsRepository.keyMatches(keyboardShortcutsUiState.toggleFullscreenKey, event.key) -> {
+                        PlayerKeyboardShortcutsRepository.keyMatchesNormalized(normalizedFullscreenKey, event.key) -> {
                             toggleFullscreen()
                             true
                         }
 
-                        PlayerKeyboardShortcutsRepository.keyMatches(keyboardShortcutsUiState.playPauseKey, event.key) -> {
+                        PlayerKeyboardShortcutsRepository.keyMatchesNormalized(normalizedPlayPauseKey, event.key) -> {
                             if (playbackSnapshot.isPlaying) {
                                 playerController?.pause()
                             } else {
@@ -1557,13 +1570,13 @@ fun PlayerScreen(
                             true
                         }
 
-                        PlayerKeyboardShortcutsRepository.keyMatches(keyboardShortcutsUiState.seekForwardKey, event.key) -> {
+                        PlayerKeyboardShortcutsRepository.keyMatchesNormalized(normalizedSeekForwardKey, event.key) -> {
                             seekBy(10_000L)
                             revealPlayerChrome()
                             true
                         }
 
-                        PlayerKeyboardShortcutsRepository.keyMatches(keyboardShortcutsUiState.seekBackwardKey, event.key) -> {
+                        PlayerKeyboardShortcutsRepository.keyMatchesNormalized(normalizedSeekBackwardKey, event.key) -> {
                             seekBy(-10_000L)
                             revealPlayerChrome()
                             true

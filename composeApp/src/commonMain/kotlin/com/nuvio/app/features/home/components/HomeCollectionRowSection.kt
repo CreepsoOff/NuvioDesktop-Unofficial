@@ -130,7 +130,11 @@ private fun CollectionFolderCard(
         val isHovered by interactionSource.collectIsHoveredAsState()
         val gifUrl = firstNonBlank(folder.focusGifUrl)?.takeIf { folder.focusGifEnabled }
         val coverUrl = firstNonBlank(folder.coverImageUrl)
-        val shouldAnimateGif = gifUrl != null && (alwaysAnimateGif || isHovered || coverUrl == null)
+        val shouldAnimateGif = shouldAnimateCollectionGif(
+            hasGif = gifUrl != null,
+            alwaysAnimateGif = alwaysAnimateGif,
+            isHovered = isHovered,
+        )
         val imageUrl = when {
             shouldAnimateGif -> gifUrl
             !coverUrl.isNullOrBlank() -> coverUrl
@@ -213,3 +217,9 @@ private fun firstNonBlank(
     fourth?.takeIf { it.isNotBlank() }?.trim()?.let { return it }
     return null
 }
+
+private fun shouldAnimateCollectionGif(
+    hasGif: Boolean,
+    alwaysAnimateGif: Boolean,
+    isHovered: Boolean,
+): Boolean = hasGif && (alwaysAnimateGif || isHovered)

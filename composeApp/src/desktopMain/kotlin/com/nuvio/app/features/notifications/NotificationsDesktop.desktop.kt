@@ -57,6 +57,7 @@ internal actual object EpisodeReleaseNotificationPlatform {
         withContext(Dispatchers.Default) {
             clearScheduledEpisodeReleaseNotifications()
             if (!isWindows()) return@withContext
+            DesktopRuntimeLog.info("Desktop notifications scheduling is in-memory and resets after app restart.")
             requests.forEach { request ->
                 val triggerAt = scheduledNotificationTime(request.releaseDateIso) ?: return@forEach
                 val delayMs = (triggerAt.toEpochMilli() - System.currentTimeMillis()).coerceAtLeast(0L)
@@ -72,7 +73,7 @@ internal actual object EpisodeReleaseNotificationPlatform {
 
     actual suspend fun clearScheduledEpisodeReleaseNotifications() {
         withContext(Dispatchers.Default) {
-            scheduledJobs.values.forEach { it.cancel() }
+            scheduledJobs.values.toList().forEach { it.cancel() }
             scheduledJobs.clear()
         }
     }
@@ -120,6 +121,7 @@ internal actual object EpisodeReleaseNotificationPlatform {
 private object DesktopToastNotifier {
     private val lock = Any()
     private var trayIcon: TrayIcon? = null
+    @Volatile private var shutdownHookInstalled = false
 
     fun isSupported(): Boolean = SystemTray.isSupported()
 
@@ -128,7 +130,17 @@ private object DesktopToastNotifier {
         synchronized(lock) {
             if (trayIcon != null) return@synchronized
             val tray = SystemTray.getSystemTray()
-            val iconImage: Image = BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
+            val iconImage: Image = BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB).apply {
+                val g = createGraphics()
+                try {
+                    g.color = java.awt.Color(0x62, 0x7E, 0xFF)
+                    g.fillRoundRect(0, 0, 16, 16, 6, 6)
+                    g.color = java.awt.Color.WHITE
+                    g.drawString("N", 4, 12)
+                } finally {
+                    g.dispose()
+                }
+            }
             val icon = TrayIcon(iconImage, "Nuvio").apply {
                 isImageAutoSize = true
                 toolTip = "Nuvio"
@@ -139,6 +151,13 @@ private object DesktopToastNotifier {
                 throw IllegalStateException("Failed to initialize tray icon", error)
             }
             trayIcon = icon
+            if (!shutdownHookInstalled) {
+                Runtime.getRuntime().addShutdownHook(Thread {
+                    runCatching { tray.remove(icon) }
+                        .onFailure { DesktopRuntimeLog.warn("Failed to remove tray icon during shutdown: ${it.message}") }
+                })
+                shutdownHookInstalled = true
+            }
         }
     }
 
