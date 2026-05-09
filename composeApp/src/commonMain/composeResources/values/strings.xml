@@ -477,6 +477,8 @@
     <string name="settings_homescreen_section_catalogs_collections">CATALOGS &amp; COLLECTIONS</string>
     <string name="settings_homescreen_section_collections">COLLECTIONS</string>
     <string name="settings_homescreen_section_hero">Home Layout</string>
+    <string name="settings_homescreen_always_animate_gif">Always animate GIF (experimental)</string>
+    <string name="settings_homescreen_always_animate_gif_description">When disabled, collection GIFs animate only on hover. GIF-only folders still stay static until hovered.</string>
     <string name="settings_homescreen_section_hero_sources">Hero Catalogs</string>
     <string name="settings_homescreen_selected_count">%1$d of %2$d selected</string>
     <string name="settings_homescreen_show_hero">Show Hero Section</string>
@@ -708,6 +710,12 @@
     <string name="settings_playback_section_decoder">DECODER</string>
     <string name="settings_playback_section_next_episode">NEXT EPISODE</string>
     <string name="settings_playback_section_player">PLAYER</string>
+    <string name="settings_playback_section_keyboard_shortcuts">KEYBOARD SHORTCUTS</string>
+    <string name="settings_playback_shortcut_play_pause">Play/Pause</string>
+    <string name="settings_playback_shortcut_seek_forward">Seek forward 10 seconds</string>
+    <string name="settings_playback_shortcut_seek_backward">Seek backward 10 seconds</string>
+    <string name="settings_playback_shortcut_toggle_fullscreen">Toggle player fullscreen</string>
+    <string name="settings_playback_shortcut_cycle_hint">Tap a row to cycle through available key options.</string>
     <string name="settings_playback_section_skip_segments">SKIP SEGMENTS</string>
     <string name="settings_playback_section_stream_auto_play">STREAM AUTO-PLAY</string>
     <string name="settings_playback_section_stream_selection">STREAM SELECTION</string>

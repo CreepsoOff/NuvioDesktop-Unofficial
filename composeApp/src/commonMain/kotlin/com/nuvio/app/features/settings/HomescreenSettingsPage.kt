@@ -56,6 +56,8 @@ import nuvio.composeapp.generated.resources.settings_homescreen_show_hero
 import nuvio.composeapp.generated.resources.settings_homescreen_show_hero_description
 import nuvio.composeapp.generated.resources.settings_homescreen_summary
 import nuvio.composeapp.generated.resources.settings_homescreen_summary_hint
+import nuvio.composeapp.generated.resources.settings_homescreen_always_animate_gif
+import nuvio.composeapp.generated.resources.settings_homescreen_always_animate_gif_description
 import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
@@ -65,6 +67,7 @@ internal fun LazyListScope.homescreenSettingsContent(
     isTablet: Boolean,
     heroEnabled: Boolean,
     hideUnreleasedContent: Boolean,
+    alwaysAnimateCollectionGifs: Boolean,
     items: List<HomeCatalogSettingsItem>,
 ) {
     val selectedHeroSourceCount = items.count { it.heroSourceEnabled }
@@ -97,6 +100,14 @@ internal fun LazyListScope.homescreenSettingsContent(
                     checked = hideUnreleasedContent,
                     isTablet = isTablet,
                     onCheckedChange = HomeCatalogSettingsRepository::setHideUnreleasedContent,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_homescreen_always_animate_gif),
+                    description = stringResource(Res.string.settings_homescreen_always_animate_gif_description),
+                    checked = alwaysAnimateCollectionGifs,
+                    isTablet = isTablet,
+                    onCheckedChange = HomeCatalogSettingsRepository::setAlwaysAnimateCollectionGifs,
                 )
             }
         }

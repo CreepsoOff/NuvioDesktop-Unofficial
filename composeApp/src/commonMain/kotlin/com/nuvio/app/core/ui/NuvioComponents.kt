@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import com.nuvio.app.isDesktop
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_back
 import nuvio.composeapp.generated.resources.action_ok
@@ -484,17 +485,22 @@ fun NuvioToastHost(
     AnimatedVisibility(
         visibleState = visibilityState,
         modifier = modifier,
-        enter = fadeIn() + slideInVertically { -it },
-        exit = fadeOut() + slideOutVertically { -it },
+        enter = fadeIn() + slideInVertically { if (isDesktop) it else -it },
+        exit = fadeOut() + slideOutVertically { if (isDesktop) it else -it },
     ) {
         val currentToast = renderedToast ?: return@AnimatedVisibility
-        Box(
-            modifier = Modifier
+        val hostModifier = if (isDesktop) {
+            Modifier
+                .fillMaxSize()
+                .padding(end = 16.dp, bottom = 16.dp)
+        } else {
+            Modifier
                 .fillMaxWidth()
                 .padding(top = statusBarTop + 12.dp)
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.TopCenter,
-        ) {
+                .padding(horizontal = 16.dp)
+        }
+        val hostAlignment = if (isDesktop) Alignment.BottomEnd else Alignment.TopCenter
+        Box(modifier = hostModifier, contentAlignment = hostAlignment) {
             Surface(
                 shape = RoundedCornerShape(18.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
