@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.nuvio.app.features.home.PosterShape
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 enum class FolderViewMode {
     TABBED_GRID,
@@ -13,7 +14,7 @@ enum class FolderViewMode {
     companion object {
         fun fromString(value: String): FolderViewMode =
             when {
-                value.equals(FOLLOW_LAYOUT.name, ignoreCase = true) -> ROWS
+                value.equals(FOLLOW_LAYOUT.name, ignoreCase = true) -> FOLLOW_LAYOUT
                 value.equals(ROWS.name, ignoreCase = true) -> ROWS
                 value.equals(TABBED_GRID.name, ignoreCase = true) -> TABBED_GRID
                 else -> TABBED_GRID
@@ -99,6 +100,7 @@ enum class TmdbCollectionSort(val value: String) {
     ORIGINAL("original"),
     POPULAR_DESC("popularity.desc"),
     VOTE_AVERAGE_DESC("vote_average.desc"),
+    VOTE_COUNT_DESC("vote_count.desc"),
     RELEASE_DATE_DESC("primary_release_date.desc"),
     FIRST_AIR_DATE_DESC("first_air_date.desc"),
 }
@@ -148,6 +150,8 @@ data class TmdbCollectionFilters(
     val withCompanies: String? = null,
     val withNetworks: String? = null,
     val year: Int? = null,
+    val watchRegion: String? = null,
+    val withWatchProviders: String? = null,
 )
 
 data class TmdbSourceImportMetadata(
@@ -168,6 +172,8 @@ data class CollectionFolder(
     val coverImageUrl: String? = null,
     val focusGifUrl: String? = null,
     val focusGifEnabled: Boolean = true,
+    @Transient
+    val mobileFocusGifEnabled: Boolean = true,
     val coverEmoji: String? = null,
     val tileShape: String = "poster",
     val hideTitle: Boolean = false,
