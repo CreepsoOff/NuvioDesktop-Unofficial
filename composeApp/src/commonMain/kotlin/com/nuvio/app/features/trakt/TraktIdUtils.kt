@@ -2,6 +2,8 @@ package com.nuvio.app.features.trakt
 
 import kotlinx.serialization.Serializable
 
+private val traktYearRegex = Regex("(\\d{4})")
+
 @Serializable
 internal data class TraktExternalIds(
     val trakt: Int? = null,
@@ -49,5 +51,5 @@ internal fun normalizeTraktContentId(ids: TraktExternalIds?, fallback: String? =
 
 internal fun extractTraktYear(value: String?): Int? {
     if (value.isNullOrBlank()) return null
-    return Regex("(\\d{4})").find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
+    return traktYearRegex.find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
 }

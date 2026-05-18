@@ -1,9 +1,16 @@
 package com.nuvio.app.core.format
 
+import com.nuvio.app.testing.useEnglishTestLanguage
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ReleaseDateDisplayTest {
+    @BeforeTest
+    fun setUp() {
+        useEnglishTestLanguage()
+    }
+
     @Test
     fun formatsIsoDate() {
         assertEquals("2025 February 1", formatReleaseDateForDisplay("2025-02-01"))

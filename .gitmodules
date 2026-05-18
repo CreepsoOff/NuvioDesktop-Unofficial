@@ -1,3 +1,7 @@
 [submodule "MPVKit"]
 	path = MPVKit
 	url = https://github.com/tapframe/MPVNuvio.git
+[submodule "mediamp"]
+	path = mediamp
+	url = https://github.com/CreepsoOff/mediamp-nuvio.git
+	branch = windows-nuvio

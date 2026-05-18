@@ -61,8 +61,11 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
+import com.nuvio.app.core.ui.desktopHorizontalLazyRowGestures
+import com.nuvio.app.core.ui.desktopContextMenuPointer
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
 import com.nuvio.app.core.ui.NuvioAnimatedWatchedBadge
+import com.nuvio.app.core.ui.NuvioImageFilterQuality
 import com.nuvio.app.core.ui.NuvioProgressBar
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaEpisodeCardStyle
@@ -160,7 +163,9 @@ fun DetailSeriesContent(
         return
     }
 
-    val seasons = groupedEpisodes.keys.sortedBy(::seasonSortKey)
+    val seasons = remember(groupedEpisodes) {
+        groupedEpisodes.keys.sortedBy(::seasonSortKey)
+    }
     val defaultSeason = preferredSeasonNumber
         ?.takeIf { it in groupedEpisodes }
         ?: seasons.first()
@@ -396,7 +401,9 @@ private fun SeasonTextChipScrollRow(
 
     LazyRow(
         state = seasonListState,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .desktopHorizontalLazyRowGestures(seasonListState),
         horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
     ) {
         items(seasons, key = { season -> season }) { season ->
@@ -461,7 +468,9 @@ private fun SeasonPosterScrollRow(
 
     LazyRow(
         state = seasonListState,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .desktopHorizontalLazyRowGestures(seasonListState),
         horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
     ) {
         items(seasons, key = { season -> season }) { season ->
@@ -516,6 +525,7 @@ private fun SeasonPosterButton(
                     contentDescription = label,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
+                    filterQuality = NuvioImageFilterQuality,
                 )
             } else {
                 Box(
@@ -593,7 +603,9 @@ private fun EpisodeHorizontalRow(
 
     LazyRow(
         state = listState,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .desktopHorizontalLazyRowGestures(listState),
         contentPadding = PaddingValues(horizontal = rowMetrics.rowHorizontalPadding, vertical = rowMetrics.rowVerticalPadding),
         horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
     ) {
@@ -660,7 +672,8 @@ private fun EpisodeHorizontalCard(
                 enabled = onClick != null || onLongPress != null,
                 onClick = { onClick?.invoke() },
                 onLongClick = onLongPress,
-            ),
+            )
+            .desktopContextMenuPointer(onLongPress),
     ) {
         val imageUrl = video.thumbnail ?: fallbackImage
         val shouldBlurArtwork = blurUnwatchedEpisodes && !isWatched
@@ -672,6 +685,7 @@ private fun EpisodeHorizontalCard(
                     .fillMaxSize()
                     .then(if (shouldBlurArtwork) Modifier.blur(18.dp) else Modifier),
                 contentScale = ContentScale.Crop,
+                filterQuality = NuvioImageFilterQuality,
             )
         }
 
@@ -1015,7 +1029,8 @@ private fun EpisodeListCard(
                 enabled = onClick != null || onLongPress != null,
                 onClick = { onClick?.invoke() },
                 onLongClick = onLongPress,
-            ),
+            )
+            .desktopContextMenuPointer(onLongPress),
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -1037,6 +1052,7 @@ private fun EpisodeListCard(
                             .fillMaxSize()
                             .then(if (shouldBlurArtwork) Modifier.blur(18.dp) else Modifier),
                         contentScale = ContentScale.Crop,
+                        filterQuality = NuvioImageFilterQuality,
                     )
                 } else {
                     Box(

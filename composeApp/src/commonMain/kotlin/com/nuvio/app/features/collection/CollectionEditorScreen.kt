@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1023,7 +1024,10 @@ private fun TmdbSourcePickerScreen(
                 item {
                     PickerSectionLabel(stringResource(Res.string.collections_editor_tmdb_search_results))
                 }
-                itemsIndexed(state.tmdbCompanyResults) { _, result ->
+                items(
+                    items = state.tmdbCompanyResults,
+                    key = { result -> "tmdb_company_${result.id}" },
+                ) { result ->
                     val title = result.name ?: stringResource(Res.string.collections_editor_tmdb_company_fallback, result.id)
                     val movieSuffix = stringResource(Res.string.collections_editor_tmdb_movies)
                     val seriesSuffix = stringResource(Res.string.collections_editor_tmdb_series)
@@ -1056,7 +1060,10 @@ private fun TmdbSourcePickerScreen(
                 item {
                     PickerSectionLabel(stringResource(Res.string.collections_editor_tmdb_search_results))
                 }
-                itemsIndexed(state.tmdbCollectionResults) { _, result ->
+                items(
+                    items = state.tmdbCollectionResults,
+                    key = { result -> "tmdb_collection_${result.id}" },
+                ) { result ->
                     val title = result.name ?: stringResource(Res.string.collections_editor_tmdb_collection_fallback, result.id)
                     PickerOptionRow(
                         title = title,
@@ -1411,7 +1418,10 @@ private fun TmdbSourcePickerScreen(
                 PickerSectionLabel(stringResource(Res.string.collections_editor_tmdb_presets))
             }
             if (state.tmdbBuilderMode == TmdbBuilderMode.PRESETS) {
-                itemsIndexed(TmdbCollectionSourceResolver.presets()) { _, preset ->
+                items(
+                    items = TmdbCollectionSourceResolver.presets(),
+                    key = { preset -> preset.source.stableTmdbPresetKey() },
+                ) { preset ->
                     PickerOptionRow(
                         title = preset.label,
                         subtitle = tmdbSourceSubtitle(preset.source),
@@ -1607,14 +1617,17 @@ private fun TraktSourcePickerScreen(
 
             TraktResultSection(
                 title = searchResultsTitle,
+                keyPrefix = "search",
                 results = state.traktSearchResults,
             )
             TraktResultSection(
                 title = trendingTitle,
+                keyPrefix = "trending",
                 results = state.traktTrendingResults,
             )
             TraktResultSection(
                 title = popularTitle,
+                keyPrefix = "popular",
                 results = state.traktPopularResults,
             )
 
@@ -1663,13 +1676,17 @@ private fun TraktSourcePickerScreen(
 
 private fun LazyListScope.TraktResultSection(
     title: String,
+    keyPrefix: String,
     results: List<TraktPublicListSearchResult>,
 ) {
     if (results.isEmpty()) return
     item {
         PickerSectionLabel(title)
     }
-    itemsIndexed(results) { _, result ->
+    items(
+        items = results,
+        key = { result -> "trakt_${keyPrefix}_list_${result.traktListId}" },
+    ) { result ->
         PickerOptionRow(
             title = result.title,
             subtitle = result.subtitle,
@@ -1951,7 +1968,10 @@ private fun GenrePickerSheet(
                 }
             }
 
-            itemsIndexed(genreOptions) { _, genre ->
+            items(
+                items = genreOptions,
+                key = { genre -> genre },
+            ) { genre ->
                 GenrePickerOptionRow(
                     title = genre,
                     selected = selectedGenre == genre,
@@ -2400,6 +2420,14 @@ private fun tmdbSourceSubtitle(source: CollectionSource): String {
         ).joinToString(" • ")
     }
 }
+
+private fun CollectionSource.stableTmdbPresetKey(): String =
+    listOfNotNull(
+        tmdbSourceType,
+        tmdbId?.toString(),
+        mediaType,
+        title,
+    ).joinToString(separator = ":")
 
 @Composable
 private fun posterShapeLabel(shape: PosterShape): String =

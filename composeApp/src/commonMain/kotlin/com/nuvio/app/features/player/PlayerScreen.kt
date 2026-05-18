@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -30,8 +31,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -45,6 +53,7 @@ import com.nuvio.app.features.debrid.toastMessage
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.AddonResource
 import com.nuvio.app.features.addons.ManagedAddon
+import com.nuvio.app.isDesktop
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.details.MetaVideo
@@ -79,6 +88,7 @@ import kotlin.math.roundToLong
 import kotlin.math.roundToInt
 
 private const val PlaybackProgressPersistIntervalMs = 60_000L
+private const val PlayerControlsAutoHideDelayMs = 3_500L
 private const val PlayerDoubleTapSeekStepMs = 10_000L
 private const val PlayerDoubleTapSeekResetDelayMs = 800L
 private const val PlayerLockedOverlayDurationMs = 2_000L
@@ -192,9 +202,25 @@ fun PlayerScreen(
             moderate = stringResource(Res.string.parental_severity_moderate),
             mild = stringResource(Res.string.parental_severity_mild),
         )
+        val torrentUnsupportedText = stringResource(Res.string.streams_torrent_not_supported)
         val gestureController = rememberPlayerGestureController()
+        val fullscreenController = rememberPlayerFullscreenController()
+        val playerFocusRequester = remember { FocusRequester() }
+        val hoverDrivenChrome = !usesNativePlayerChrome && !usesAnimatedPlayerChrome
         var controlsVisible by rememberSaveable { mutableStateOf(true) }
         var playerControlsLocked by rememberSaveable { mutableStateOf(false) }
+        var isHovering by remember { mutableStateOf(false) }
+        var pointerActivitySerial by remember { mutableStateOf(0) }
+        fun revealPlayerChrome() {
+            controlsVisible = true
+            pointerActivitySerial += 1
+        }
+        val setControlsVisibleFromHover = rememberUpdatedState { shouldShow: Boolean ->
+            if (shouldShow && !playerControlsLocked) {
+                revealPlayerChrome()
+            }
+            isHovering = shouldShow
+        }
         // Active playback state (mutable to support source/episode switching)
         var activeSourceUrl by rememberSaveable { mutableStateOf(sourceUrl) }
         var activeSourceAudioUrl by rememberSaveable { mutableStateOf(sourceAudioUrl) }
@@ -222,6 +248,7 @@ fun PlayerScreen(
         }
         var layoutSize by remember { mutableStateOf(IntSize.Zero) }
         var playbackSnapshot by remember { mutableStateOf(PlayerPlaybackSnapshot()) }
+        var playbackLoadGeneration by remember { mutableStateOf(0) }
         var playerController by remember { mutableStateOf<PlayerEngineController?>(null) }
         var playerControllerSourceUrl by remember { mutableStateOf<String?>(null) }
         var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -261,6 +288,7 @@ fun PlayerScreen(
             activeSeasonNumber,
             activeEpisodeNumber,
         ) { mutableStateOf(false) }
+
         val backdropArtwork = background ?: poster
         val displayedPositionMs = scrubbingPositionMs ?: playbackSnapshot.positionMs
         val isEpisode = activeSeasonNumber != null && activeEpisodeNumber != null
@@ -307,6 +335,8 @@ fun PlayerScreen(
         var nextEpisodeAutoPlaySourceName by remember { mutableStateOf<String?>(null) }
         var nextEpisodeAutoPlayCountdown by remember { mutableStateOf<Int?>(null) }
         var nextEpisodeAutoPlayJob by remember { mutableStateOf<Job?>(null) }
+        var lastNonMutedVolume by remember { mutableStateOf(1f) }
+        var visibleVolumeLevel by remember { mutableStateOf<PlayerAudioLevel?>(null) }
 
         LaunchedEffect(parentMetaType, parentMetaId) {
             playerMetaVideos = MetaDetailsRepository.peek(parentMetaType, parentMetaId)?.videos ?: emptyList()
@@ -456,6 +486,7 @@ fun PlayerScreen(
         }
 
         fun flushWatchProgress() {
+            PlayerRuntimeTrace.info("[WP-FLUSH] videoId=${playbackSession.videoId} pos=${playbackSnapshot.positionMs}ms dur=${playbackSnapshot.durationMs}ms isEnded=${playbackSnapshot.isEnded}")
             emitStopScrobbleForCurrentProgress()
             WatchProgressRepository.flushPlaybackProgress(
                 session = playbackSession,
@@ -463,9 +494,13 @@ fun PlayerScreen(
             )
         }
 
+        var backFlushed by remember { mutableStateOf(false) }
+
         val onBackWithProgress = remember(onBack, playbackSession, playbackSnapshot) {
             {
+                backFlushed = true
                 flushWatchProgress()
+                playerController?.release()
                 onBack()
             }
         }
@@ -594,12 +629,15 @@ fun PlayerScreen(
         fun revealLockedOverlay() {
             controlsVisible = false
             lockedOverlayVisible = true
+            pointerActivitySerial += 1
         }
 
         fun lockPlayerControls() {
             playerControlsLocked = true
             controlsVisible = false
             lockedOverlayVisible = false
+            isHovering = false
+            pointerActivitySerial += 1
             pausedOverlayVisible = false
             isScrubbingTimeline = false
             scrubbingPositionMs = null
@@ -618,7 +656,18 @@ fun PlayerScreen(
         fun unlockPlayerControls() {
             playerControlsLocked = false
             lockedOverlayVisible = false
-            controlsVisible = true
+            isHovering = false
+            revealPlayerChrome()
+        }
+
+        fun toggleFullscreen() {
+            if (!fullscreenController.isFullscreenSupported) return
+            fullscreenController.toggleFullscreen()
+            revealPlayerChrome()
+            scope.launch {
+                delay(50)
+                playerFocusRequester.requestFocus()
+            }
         }
 
         fun showSeekFeedback(direction: PlayerSeekDirection, amountMs: Long) {
@@ -703,15 +752,60 @@ fun PlayerScreen(
                 shouldPlay = true
                 playerController?.play()
             }
-            controlsVisible = true
+            revealPlayerChrome()
         }
 
         fun seekBy(offsetMs: Long) {
             playerController?.seekBy(offsetMs)
-            controlsVisible = true
+            revealPlayerChrome()
             when {
                 offsetMs > 0L -> showSeekFeedback(PlayerSeekDirection.Forward, offsetMs)
                 offsetMs < 0L -> showSeekFeedback(PlayerSeekDirection.Backward, abs(offsetMs))
+            }
+        }
+
+        fun currentPlayerVolume(): PlayerAudioLevel? =
+            playerController?.currentVolume() ?: gestureController?.currentVolume()
+
+        fun setPlayerVolume(level: Float) {
+            val nextLevel = playerController?.setVolume(level) ?: gestureController?.setVolume(level)
+            if (nextLevel != null) {
+                visibleVolumeLevel = nextLevel
+                if (!nextLevel.isMuted && nextLevel.fraction > 0.001f) {
+                    lastNonMutedVolume = nextLevel.fraction
+                }
+                showVolumeFeedback(nextLevel)
+                revealPlayerChrome()
+            }
+        }
+
+        fun adjustVolume(delta: Float) {
+            val current = currentPlayerVolume()?.fraction ?: lastNonMutedVolume
+            setPlayerVolume(current + delta)
+        }
+
+        fun toggleMute() {
+            val current = currentPlayerVolume()
+            if (current?.isMuted == true || (current?.fraction ?: 0f) <= 0.001f) {
+                setPlayerVolume(lastNonMutedVolume.coerceIn(0.05f, 1f))
+            } else {
+                lastNonMutedVolume = current?.fraction?.coerceIn(0.05f, 1f) ?: lastNonMutedVolume
+                setPlayerVolume(0f)
+            }
+        }
+
+        fun skipActiveSegment() {
+            val interval = activeSkipInterval ?: return
+            playerController?.seekTo((interval.endTime * 1000).toLong())
+            skipIntervalDismissed = true
+            revealPlayerChrome()
+        }
+
+        LaunchedEffect(playerController, gestureController, activeSourceUrl) {
+            val current = currentPlayerVolume()
+            visibleVolumeLevel = current
+            if (current != null && !current.isMuted && current.fraction > 0.001f) {
+                lastNonMutedVolume = current.fraction
             }
         }
 
@@ -760,7 +854,7 @@ fun PlayerScreen(
                     PlayerResizeMode.Zoom -> resizeModeZoomLabel
                 },
             )
-            controlsVisible = true
+            revealPlayerChrome()
         }
 
         fun cyclePlaybackSpeed() {
@@ -769,7 +863,7 @@ fun PlayerScreen(
             val next = speeds.firstOrNull { it > current + 0.01f } ?: speeds.first()
             playerController?.setPlaybackSpeed(next)
             showGestureMessage(formatPlaybackSpeedLabel(next))
-            controlsVisible = true
+            revealPlayerChrome()
         }
 
         fun activateHoldToSpeed() {
@@ -804,6 +898,10 @@ fun PlayerScreen(
                 revealLockedOverlay()
                 return@rememberUpdatedState
             }
+            if (hoverDrivenChrome) {
+                setControlsVisibleFromHover.value(true)
+                return@rememberUpdatedState
+            }
             val centerStart = layoutSize.width * PlayerLeftGestureBoundary
             val centerEnd = layoutSize.width * PlayerRightGestureBoundary
             if (controlsVisible && offset.x in centerStart..centerEnd) {
@@ -817,6 +915,10 @@ fun PlayerScreen(
                 revealLockedOverlay()
                 return@rememberUpdatedState
             }
+            if (fullscreenController.isFullscreenSupported) {
+                toggleFullscreen()
+                return@rememberUpdatedState
+            }
             when {
                 offset.x < layoutSize.width * PlayerLeftGestureBoundary -> {
                     handleDoubleTapSeek(PlayerSeekDirection.Backward)
@@ -825,6 +927,8 @@ fun PlayerScreen(
                 offset.x > layoutSize.width * PlayerRightGestureBoundary -> {
                     handleDoubleTapSeek(PlayerSeekDirection.Forward)
                 }
+
+                hoverDrivenChrome -> setControlsVisibleFromHover.value(true)
 
                 else -> controlsVisible = !controlsVisible
             }
@@ -893,9 +997,13 @@ fun PlayerScreen(
                     },
                 )
             ) return
+            if (stream.isTorrentStream) {
+                NuvioToastController.show(torrentUnsupportedText)
+                return
+            }
             val url = stream.directPlaybackUrl ?: return
             if (url == activeSourceUrl) return
-            val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
+            val resumeAtMs = (scrubbingPositionMs ?: playbackSnapshot.positionMs).coerceAtLeast(0L)
             flushWatchProgress()
             if (playerSettingsUiState.streamReuseLastLinkEnabled && activeVideoId != null) {
                 val cacheKey = StreamLinkCacheRepository.contentKey(
@@ -927,10 +1035,10 @@ fun PlayerScreen(
             activeProviderName = stream.addonName
             activeProviderAddonId = stream.addonId
             currentStreamBingeGroup = stream.behaviorHints.bingeGroup
-            activeInitialPositionMs = currentPositionMs
+            activeInitialPositionMs = resumeAtMs
             activeInitialProgressFraction = null
             showSourcesPanel = false
-            controlsVisible = true
+            revealPlayerChrome()
         }
 
         fun switchToEpisodeStream(stream: StreamItem, episode: MetaVideo) {
@@ -954,6 +1062,10 @@ fun PlayerScreen(
                     },
                 )
             ) return
+            if (stream.isTorrentStream) {
+                NuvioToastController.show(torrentUnsupportedText)
+                return
+            }
             val url = stream.directPlaybackUrl ?: return
             showNextEpisodeCard = false
             showSourcesPanel = false
@@ -1017,7 +1129,7 @@ fun PlayerScreen(
             activeVideoId = episode.id
             activeInitialPositionMs = epResumePositionMs
             activeInitialProgressFraction = epResumeFraction
-            controlsVisible = true
+            revealPlayerChrome()
         }
 
         fun switchToDownloadedEpisode(downloadItem: DownloadItem, episode: MetaVideo) {
@@ -1065,7 +1177,7 @@ fun PlayerScreen(
             activeVideoId = resolvedVideoId
             activeInitialPositionMs = epResumePositionMs
             activeInitialProgressFraction = epResumeFraction
-            controlsVisible = true
+            revealPlayerChrome()
         }
 
         fun playNextEpisode() {
@@ -1226,6 +1338,11 @@ fun PlayerScreen(
         }
 
         LaunchedEffect(activeSourceUrl, activeSourceAudioUrl, activeSourceHeaders, activeSourceResponseHeaders) {
+            playbackLoadGeneration += 1
+            PlayerRuntimeTrace.info(
+                "loading overlay show generation=$playbackLoadGeneration " +
+                    "sourceKey=${activeSourceUrl.stableLogKey()}",
+            )
             errorMessage = null
             playerController = null
             playerControllerSourceUrl = null
@@ -1292,6 +1409,7 @@ fun PlayerScreen(
         }
 
         LaunchedEffect(
+            activeSourceUrl,
             playerController,
             playerControllerSourceUrl,
             playbackSnapshot.isLoading,
@@ -1324,31 +1442,80 @@ fun PlayerScreen(
                 return@LaunchedEffect
             }
 
+            // Delay resume seek until media timeline is available; some backends
+            // ignore early seek commands fired before duration is known.
+            if (playbackSnapshot.durationMs <= 0L) {
+                return@LaunchedEffect
+            }
+
             controller.seekTo(targetPositionMs)
             initialSeekApplied = true
         }
 
         LaunchedEffect(
+            hoverDrivenChrome,
+            pointerActivitySerial,
             controlsVisible,
-            isScrubbingTimeline,
+            playerControlsLocked,
             playbackSnapshot.isPlaying,
             playbackSnapshot.isLoading,
+            isScrubbingTimeline,
             showParentalGuide,
             errorMessage,
+            showSourcesPanel,
+            showEpisodesPanel,
+            showAudioModal,
+            showSubtitleModal,
+            showSubmitIntroModal,
         ) {
-            if (
-                !controlsVisible ||
-                isScrubbingTimeline ||
-                !playbackSnapshot.isPlaying ||
-                playbackSnapshot.isLoading ||
-                showParentalGuide ||
-                errorMessage != null
-            ) {
-                return@LaunchedEffect
-            }
-            delay(3500)
+            if (!hoverDrivenChrome) return@LaunchedEffect
+            if (!controlsVisible) return@LaunchedEffect
+            if (playerControlsLocked) return@LaunchedEffect
+            if (!playbackSnapshot.isPlaying) return@LaunchedEffect
+            if (playbackSnapshot.isLoading) return@LaunchedEffect
+            if (isScrubbingTimeline) return@LaunchedEffect
+            if (showParentalGuide) return@LaunchedEffect
+            if (errorMessage != null) return@LaunchedEffect
+
+            val blockingPanelOpen =
+                showSourcesPanel ||
+                    showEpisodesPanel ||
+                    showAudioModal ||
+                    showSubtitleModal ||
+                    showSubmitIntroModal
+            if (blockingPanelOpen) return@LaunchedEffect
+
+            delay(PlayerControlsAutoHideDelayMs)
             controlsVisible = false
+            isHovering = false
         }
+
+        val blockingPanelOpen =
+            showSourcesPanel ||
+                showEpisodesPanel ||
+                showAudioModal ||
+                showSubtitleModal ||
+                showSubmitIntroModal
+
+        val cursorHoldReasonVisible =
+            lockedOverlayVisible ||
+                (
+                    !playerControlsLocked &&
+                        (
+                            controlsVisible ||
+                                playbackSnapshot.isLoading ||
+                                errorMessage != null ||
+                                pausedOverlayVisible ||
+                                scrubbingPositionMs != null ||
+                                blockingPanelOpen ||
+                                liveGestureFeedback != null ||
+                                gestureFeedback != null
+                            )
+                    )
+
+        ManagePlayerCursorVisibility(
+            visible = !hoverDrivenChrome || cursorHoldReasonVisible,
+        )
 
         LaunchedEffect(playerControlsLocked, lockedOverlayVisible) {
             if (!playerControlsLocked || !lockedOverlayVisible) {
@@ -1375,7 +1542,9 @@ fun PlayerScreen(
             playbackSnapshot.durationMs,
         ) {
             if (playbackSnapshot.isEnded) {
-                flushWatchProgress()
+                if (!backFlushed) {
+                    flushWatchProgress()
+                }
                 previousIsPlaying = false
                 return@LaunchedEffect
             }
@@ -1442,15 +1611,21 @@ fun PlayerScreen(
             val episode = activeEpisodeNumber
             val vid = activeVideoId
 
-            if (season == null || episode == null || vid == null) return@LaunchedEffect
+            PlayerRuntimeTrace.info("[SKIP-INTRO] query vid=$vid season=$season episode=$episode")
+            if (season == null || episode == null || vid == null) {
+                PlayerRuntimeTrace.info("[SKIP-INTRO] ABORT null params")
+                return@LaunchedEffect
+            }
 
             launch {
                 val imdbId = vid.split(":").firstOrNull()?.takeIf { it.startsWith("tt") }
+                PlayerRuntimeTrace.info("[SKIP-INTRO] imdbId=$imdbId")
                 val intervals = SkipIntroRepository.getSkipIntervals(
                     imdbId = imdbId,
                     season = season,
                     episode = episode,
                 )
+                PlayerRuntimeTrace.info("[SKIP-INTRO] result count=${intervals.size} items=${intervals.map { "${it.type}(${it.startTime.toInt()}-${it.endTime.toInt()})" }}")
                 skipIntervals = intervals
             }
         }
@@ -1546,7 +1721,12 @@ fun PlayerScreen(
 
         DisposableEffect(playbackSession.videoId, activeSourceUrl, activeSourceAudioUrl) {
             onDispose {
-                flushWatchProgress()
+                if (!backFlushed) {
+                    PlayerRuntimeTrace.info("[WP-DISPOSE] flushing (backFlushed=false) videoId=${playbackSession.videoId}")
+                    flushWatchProgress()
+                } else {
+                    PlayerRuntimeTrace.info("[WP-DISPOSE] SKIPPED flush (backFlushed=true) videoId=${playbackSession.videoId}")
+                }
             }
         }
 
@@ -1556,10 +1736,71 @@ fun PlayerScreen(
             }
         }
 
+        LaunchedEffect(Unit) {
+            playerFocusRequester.requestFocus()
+        }
+
+        LaunchedEffect(fullscreenController.isFullscreen) {
+            playerFocusRequester.requestFocus()
+        }
+
+        BindPlayerKeyboardShortcuts(
+            enabled = isDesktop,
+            handlers = PlayerKeyboardShortcutHandlers(
+                toggleFullscreen = ::toggleFullscreen,
+                togglePlayback = ::togglePlayback,
+                seekForward = { seekBy(10_000L) },
+                seekBackward = { seekBy(-10_000L) },
+                volumeUp = { adjustVolume(0.05f) },
+                volumeDown = { adjustVolume(-0.05f) },
+                toggleMute = ::toggleMute,
+                cyclePlaybackSpeed = ::cyclePlaybackSpeed,
+                playNextEpisode = {
+                    nextEpisodeAutoPlayJob?.cancel()
+                    playNextEpisode()
+                },
+                skipActiveSegment = ::skipActiveSegment,
+            ),
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyUp) {
+                        when (event.key) {
+                            Key.F -> { toggleFullscreen(); true }
+                            Key.Spacebar -> { togglePlayback(); true }
+                            Key.DirectionRight -> { seekBy(10_000L); true }
+                            Key.DirectionLeft -> { seekBy(-10_000L); true }
+                            else -> false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                .focusRequester(playerFocusRequester)
+                .focusable()
                 .onSizeChanged { layoutSize = it }
+                .pointerInput(hoverDrivenChrome) {
+                    if (!hoverDrivenChrome) return@pointerInput
+                    awaitEachGesture {
+                        var lastPosition: Offset? = null
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            if (playerControlsLockedState.value) continue
+                            val change = event.changes.firstOrNull()
+                            if (change != null) {
+                                val currentPosition = change.position
+                                val moved = lastPosition == null || currentPosition != lastPosition
+                                lastPosition = currentPosition
+                                if (moved) {
+                                    setControlsVisibleFromHover.value(true)
+                                }
+                            }
+                        }
+                    }
+                }
                 .pointerInput(layoutSize) {
                     detectTapGestures(
                         onPress = {
@@ -1719,7 +1960,20 @@ fun PlayerScreen(
                 },
                 onSnapshot = { snapshot ->
                     playbackSnapshot = snapshot
-                    if (!snapshot.isLoading) {
+                    val snapshotGeneration = playbackLoadGeneration
+                    if (
+                        !snapshot.isLoading &&
+                        playerControllerSourceUrl == activeSourceUrl &&
+                        snapshot.indicatesReadyPlaybackFrame() &&
+                        snapshot.durationMs > 0L
+                    ) {
+                        if (!initialLoadCompleted) {
+                            PlayerRuntimeTrace.info(
+                                "loading overlay clear generation=$snapshotGeneration " +
+                                    "sourceKey=${activeSourceUrl.stableLogKey()} " +
+                                    "reason=${snapshot.readyPlaybackReason()}",
+                            )
+                        }
                         initialLoadCompleted = true
                     }
                     if (snapshot.isEnded) {
@@ -1782,8 +2036,11 @@ fun PlayerScreen(
                     displayedPositionMs = displayedPositionMs,
                     metrics = metrics,
                     resizeMode = resizeMode,
+                    volumeLevel = visibleVolumeLevel,
                     isLocked = playerControlsLocked,
                     showPlaybackControls = controlsVisible,
+                    isFullscreenSupported = fullscreenController.isFullscreenSupported,
+                    isFullscreen = fullscreenController.isFullscreen,
                     onLockToggle = {
                         if (playerControlsLocked) {
                             unlockPlayerControls()
@@ -1791,12 +2048,15 @@ fun PlayerScreen(
                             lockPlayerControls()
                         }
                     },
+                    onFullscreenClick = ::toggleFullscreen,
                     onBack = onBackWithProgress,
                     onTogglePlayback = ::togglePlayback,
                     onSeekBack = { seekBy(-10_000L) },
                     onSeekForward = { seekBy(10_000L) },
                     onResizeModeClick = ::cycleResizeMode,
                     onSpeedClick = ::cyclePlaybackSpeed,
+                    onVolumeChange = ::setPlayerVolume,
+                    onMuteClick = ::toggleMute,
                     onSubtitleClick = {
                         refreshTracks()
                         showSubtitleModal = true
@@ -1841,7 +2101,7 @@ fun PlayerScreen(
             }
 
             AnimatedVisibility(
-                visible = playerSettingsUiState.showLoadingOverlay && !initialLoadCompleted && errorMessage == null,
+                visible = playerSettingsUiState.showLoadingOverlay && (playbackSnapshot.isLoading || !initialLoadCompleted) && errorMessage == null,
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {
@@ -1882,11 +2142,7 @@ fun PlayerScreen(
                     interval = activeSkipInterval,
                     dismissed = skipIntervalDismissed,
                     controlsVisible = controlsVisible,
-                    onSkip = {
-                        val interval = activeSkipInterval ?: return@SkipIntroButton
-                        playerController?.seekTo((interval.endTime * 1000).toLong())
-                        skipIntervalDismissed = true
-                    },
+                    onSkip = ::skipActiveSegment,
                     onDismiss = { skipIntervalDismissed = true },
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -1994,7 +2250,7 @@ fun PlayerScreen(
                 },
                 onDismiss = {
                     showSourcesPanel = false
-                    controlsVisible = true
+                    revealPlayerChrome()
                 },
             )
 
@@ -2061,7 +2317,7 @@ fun PlayerScreen(
                         showEpisodesPanel = false
                         episodeStreamsPanelState = EpisodeStreamsPanelState()
                         PlayerStreamsRepository.clearEpisodeStreams()
-                        controlsVisible = true
+                        revealPlayerChrome()
                     },
                 )
             }
@@ -2184,3 +2440,15 @@ private fun findPreferredSubtitleTrackIndex(
 
     return -1
 }
+
+private fun PlayerPlaybackSnapshot.indicatesReadyPlaybackFrame(): Boolean =
+    isPlaying || isEnded
+
+private fun PlayerPlaybackSnapshot.readyPlaybackReason(): String = when {
+    isPlaying -> "playing"
+    isEnded -> "ended"
+    else -> "none"
+}
+
+private fun String.stableLogKey(): String =
+    hashCode().toUInt().toString(16)

@@ -1,4 +1,4 @@
-package com.nuvio.app.features.settings
+﻿package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.build.AppFeaturePolicy
 import androidx.compose.foundation.BorderStroke
@@ -57,12 +57,14 @@ import com.nuvio.app.features.player.ExternalPlayerApp
 import com.nuvio.app.features.player.ExternalPlayerPlatform
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.SubtitleLanguageOption
+import com.nuvio.app.features.player.platformShowsAndroidLibassToggle
 import com.nuvio.app.features.player.formatPlaybackSpeedLabel
 import com.nuvio.app.features.player.languageLabelForCode
 import com.nuvio.app.features.plugins.PluginsUiState
 import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.streams.StreamAutoPlayMode
 import com.nuvio.app.features.streams.StreamAutoPlaySource
+import com.nuvio.app.isDesktop
 import com.nuvio.app.isIos
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
@@ -216,22 +218,22 @@ private fun PlaybackSettingsSection(
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_external_player),
                     description = stringResource(
-                        if (isIos) {
-                            Res.string.settings_playback_external_player_description_ios
-                        } else {
-                            Res.string.settings_playback_external_player_description_android
+                        when {
+                            isDesktop -> Res.string.settings_playback_external_player_description_desktop
+                            isIos -> Res.string.settings_playback_external_player_description_ios
+                            else -> Res.string.settings_playback_external_player_description_android
                         },
                     ),
                     checked = autoPlayPlayerSettings.externalPlayerEnabled,
                     isTablet = isTablet,
                     onCheckedChange = { enabled ->
                         PlayerSettingsRepository.setExternalPlayerEnabled(enabled)
-                        if (enabled && isIos) {
+                        if (enabled && (isIos || isDesktop)) {
                             showExternalPlayerDialog = true
                         }
                     },
                 )
-                if (isIos && autoPlayPlayerSettings.externalPlayerEnabled) {
+                if ((isIos || isDesktop) && autoPlayPlayerSettings.externalPlayerEnabled) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
                         title = stringResource(Res.string.settings_playback_external_player_app),
@@ -455,7 +457,7 @@ private fun PlaybackSettingsSection(
             }
         }
 
-        if (!isIos) {
+        if (!isIos && !isDesktop) {
             SettingsSection(
                 title = stringResource(Res.string.settings_playback_section_decoder),
                 isTablet = isTablet,
@@ -486,8 +488,13 @@ private fun PlaybackSettingsSection(
                 }
             }
         }
-
-        if (!isIos) {
+        
+        if (isDesktop) {
+            DesktopDecoderSettingsSection(
+                isTablet = isTablet,
+            )
+        }
+if (platformShowsAndroidLibassToggle) {
             SettingsSection(
                 title = stringResource(Res.string.settings_playback_section_subtitle_rendering),
                 isTablet = isTablet,
@@ -1085,7 +1092,10 @@ private fun LanguageSelectionDialog(
                         .heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(options) { option ->
+                    items(
+                        items = options,
+                        key = { option -> option.value ?: "default" },
+                    ) { option ->
                         val isSelected = option.value == selectedValue
                         val containerColor = if (isSelected) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)

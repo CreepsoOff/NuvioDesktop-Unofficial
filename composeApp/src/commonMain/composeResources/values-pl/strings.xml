@@ -270,7 +270,9 @@
     <string name="compose_player_episode_code_episode_only">E%1$d</string>
     <string name="compose_player_episode_code_full">S%1$dE%2$d</string>
     <string name="compose_player_episode_title_format">S%1$dE%2$d • %3$s</string>
+    <string name="compose_player_enter_fullscreen">Włącz pełny ekran</string>
     <string name="compose_player_episodes">Odcinki</string>
+    <string name="compose_player_exit_fullscreen">Wyjdź z pełnego ekranu</string>
     <string name="compose_player_font_size">Rozmiar czcionki</string>
     <string name="compose_player_font_size_value">%1$dsp</string>
     <string name="compose_player_lock_controls">Zablokuj kontrolki odtwarzacza</string>

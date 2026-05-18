@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
+import com.nuvio.app.core.ui.NuvioImageFilterQuality
+import com.nuvio.app.core.ui.upgradeTmdbImageQuality
 import com.nuvio.app.features.home.MetaPreview
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -57,7 +59,7 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 
 private const val HERO_BACKGROUND_PARALLAX = 0.055f
-private const val HERO_BACKGROUND_SCALE = 1.14f
+private const val HERO_BACKGROUND_SCALE = 1.06f
 private const val HERO_CONTENT_PARALLAX = 0.18f
 private const val HERO_SCROLL_PARALLAX = 0.3f
 private const val HERO_SCROLL_DOWN_SCALE_MULTIPLIER = 0.0001f
@@ -167,8 +169,11 @@ fun HomeHeroSection(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 visiblePages.forEach { layer ->
+                    val backgroundUrl = remember(items[layer.page].banner, items[layer.page].poster) {
+                        (items[layer.page].banner ?: items[layer.page].poster)?.upgradeTmdbImageQuality()
+                    }
                     AsyncImage(
-                        model = items[layer.page].banner ?: items[layer.page].poster,
+                        model = backgroundUrl,
                         contentDescription = items[layer.page].name,
                         modifier = Modifier
                             .fillMaxSize()
@@ -181,6 +186,7 @@ fun HomeHeroSection(
                             },
                         alignment = if (layout.isTablet) Alignment.TopCenter else Alignment.Center,
                         contentScale = ContentScale.Crop,
+                        filterQuality = NuvioImageFilterQuality,
                     )
                 }
 
@@ -363,6 +369,7 @@ private fun HeroContentBlock(
                     },
                 alignment = if (layout.isTablet) Alignment.CenterStart else Alignment.Center,
                 contentScale = ContentScale.Fit,
+                filterQuality = NuvioImageFilterQuality,
             )
         } else {
             Text(

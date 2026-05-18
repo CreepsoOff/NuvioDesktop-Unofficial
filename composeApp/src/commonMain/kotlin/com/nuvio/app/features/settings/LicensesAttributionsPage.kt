@@ -30,7 +30,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioScreenHeader
-import com.nuvio.app.isIos
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -41,8 +40,6 @@ private const val TraktUrl = "https://trakt.tv"
 private const val MdbListUrl = "https://mdblist.com"
 private const val IntroDbUrl = "https://introdb.app/"
 private const val NuvioRepositoryUrl = "https://github.com/NuvioMedia/NuvioMobile"
-private const val MpvKitUrl = "https://github.com/mpvkit/MPVKit"
-private const val ApacheLicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0"
 
 private data class AttributionItem(
     val titleRes: StringResource,
@@ -55,6 +52,13 @@ private data class LicenseItem(
     val titleRes: StringResource,
     val bodyRes: StringResource,
     val licenseRes: StringResource,
+    val link: String,
+)
+
+internal data class PlatformPlaybackLicense(
+    val title: String,
+    val body: String,
+    val license: String,
     val link: String,
 )
 
@@ -121,8 +125,8 @@ private fun LicensesAttributionsBody(
             title = stringResource(Res.string.settings_licenses_attributions_section_playback),
             isTablet = isTablet,
         ) {
-            LicenseRow(
-                item = platformLicenseItem(),
+            PlatformPlaybackLicenseRow(
+                item = platformPlaybackLicense(),
                 isTablet = isTablet,
             )
         }
@@ -323,19 +327,25 @@ private fun appLicenseItem(): LicenseItem =
         link = NuvioRepositoryUrl,
     )
 
-private fun platformLicenseItem(): LicenseItem =
-    if (isIos) {
-        LicenseItem(
-            titleRes = Res.string.settings_licenses_attributions_mpvkit_title,
-            bodyRes = Res.string.settings_licenses_attributions_mpvkit_body,
-            licenseRes = Res.string.settings_licenses_attributions_mpvkit_license,
-            link = MpvKitUrl,
-        )
-    } else {
-        LicenseItem(
-            titleRes = Res.string.settings_licenses_attributions_exoplayer_title,
-            bodyRes = Res.string.settings_licenses_attributions_exoplayer_body,
-            licenseRes = Res.string.settings_licenses_attributions_exoplayer_license,
-            link = ApacheLicenseUrl,
-        )
+@Composable
+internal expect fun platformPlaybackLicense(): PlatformPlaybackLicense
+
+@Composable
+private fun PlatformPlaybackLicenseRow(
+    item: PlatformPlaybackLicense,
+    isTablet: Boolean,
+) {
+    val uriHandler = LocalUriHandler.current
+    val body = buildString {
+        append(item.body)
+        append("\n")
+        append(item.license)
     }
+    LinkedPlainRow(
+        title = item.title,
+        body = body,
+        link = item.link,
+        isTablet = isTablet,
+        onOpen = { uriHandler.openUri(item.link) },
+    )
+}

@@ -1,10 +1,17 @@
 package com.nuvio.app.features.watching.domain
 
+import com.nuvio.app.testing.useEnglishTestLanguage
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 class SeriesContinuityTest {
+    @BeforeTest
+    fun setUp() {
+        useEnglishTestLanguage()
+    }
+
     private val show = WatchingContentRef(type = "series", id = "show")
     private val episodes = listOf(
         WatchingReleasedEpisode(videoId = "ep1", seasonNumber = 1, episodeNumber = 1, title = "Episode 1", releasedDate = "2026-03-01"),

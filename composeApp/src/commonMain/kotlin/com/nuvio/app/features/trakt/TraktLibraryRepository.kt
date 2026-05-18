@@ -697,10 +697,11 @@ object TraktLibraryRepository {
 
     private fun extractYear(releaseInfo: String?): Int? {
         if (releaseInfo.isNullOrBlank()) return null
-        val yearText = Regex("(19|20)\\d{2}").find(releaseInfo)?.value ?: return null
+        val yearText = releaseYearRegex.find(releaseInfo)?.value ?: return null
         return yearText.toIntOrNull()
     }
 
+    private val releaseYearRegex = Regex("(19|20)\\d{2}")
     private val imdbRegex = Regex("tt\\d+")
 }
 

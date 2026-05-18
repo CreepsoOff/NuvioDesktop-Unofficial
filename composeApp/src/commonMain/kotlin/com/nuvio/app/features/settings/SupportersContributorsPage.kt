@@ -58,6 +58,9 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
@@ -93,6 +96,14 @@ private data class ContributionDto(
 )
 
 @Serializable
+private data class GitHubContributorDto(
+    val login: String? = null,
+    val avatar_url: String? = null,
+    val html_url: String? = null,
+    val contributions: Int? = null,
+)
+
+@Serializable
 private data class DonationsResponseDto(
     val donations: List<DonationDto> = emptyList(),
 )
@@ -123,24 +134,35 @@ private object SupportersContributorsRepository {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     suspend fun getContributors(): Result<List<CommunityContributor>> = runCatching {
-        val contributionsUrl = CommunityConfig.CONTRIBUTIONS_URL.trim()
-        check(contributionsUrl.isNotBlank()) {
+        val contributionsUrls = CommunityConfig.CONTRIBUTIONS_URL
+            .lineSequence()
+            .flatMap { line -> line.split(',').asSequence() }
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .toList()
+        val extraContributors = parseInlineContributors(CommunityConfig.CONTRIBUTIONS_EXTRA)
+
+        check(contributionsUrls.isNotEmpty() || extraContributors.isNotEmpty()) {
             getString(Res.string.community_error_unable_load_contributors)
         }
 
-        val response = httpRequestRaw(
-            method = "GET",
-            url = contributionsUrl,
-            headers = emptyMap(),
-            body = "",
-        )
-        if (response.status !in 200..299) {
-            error(getString(Res.string.community_error_contributors_request_failed))
+        buildList {
+            contributionsUrls.forEach { url ->
+                addAll(fetchContributorsFromSource(url))
+            }
+            addAll(extraContributors)
         }
-
-        json.decodeFromString<ContributionsResponseDto>(response.body)
-            .contributors
-            .mapNotNull(::normalizeContributor)
+            .groupBy { contributor -> contributor.login.lowercase() }
+            .values
+            .map { duplicates ->
+                duplicates.reduce { left, right ->
+                    left.copy(
+                        avatarUrl = left.avatarUrl ?: right.avatarUrl,
+                        profileUrl = left.profileUrl ?: right.profileUrl,
+                        totalContributions = left.totalContributions + right.totalContributions,
+                    )
+                }
+            }
             .sortedWith(
                 compareByDescending<CommunityContributor> { it.totalContributions }
                     .thenBy { it.login.lowercase() },
@@ -184,6 +206,64 @@ private object SupportersContributorsRepository {
             }
     }
 
+    private suspend fun fetchContributorsFromSource(url: String): List<CommunityContributor> {
+        val response = httpRequestRaw(
+            method = "GET",
+            url = url,
+            headers = mapOf(
+                "Accept" to "application/json",
+                "User-Agent" to "NuvioDesktop",
+            ),
+            body = "",
+        )
+        if (response.status !in 200..299) {
+            error(getString(Res.string.community_error_contributors_request_failed))
+        }
+
+        return parseContributorsPayload(response.body)
+    }
+
+    private fun parseContributorsPayload(payload: String): List<CommunityContributor> {
+        return when (val root = json.parseToJsonElement(payload)) {
+            is JsonObject -> {
+                json.decodeFromJsonElement<ContributionsResponseDto>(root)
+                    .contributors
+                    .mapNotNull(::normalizeContributor)
+            }
+
+            is JsonArray -> {
+                json.decodeFromJsonElement<List<GitHubContributorDto>>(root)
+                    .mapNotNull(::normalizeGitHubContributor)
+            }
+
+            else -> emptyList()
+        }
+    }
+
+    private fun parseInlineContributors(raw: String): List<CommunityContributor> =
+        raw.lineSequence()
+            .flatMap { line -> line.split(';').asSequence() }
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .mapNotNull { entry ->
+                val parts = entry.split('|')
+                val login = parts.getOrNull(0)?.trim().orEmpty()
+                val avatarUrl = parts.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() }
+                val profileUrl = parts.getOrNull(2)?.trim()?.takeIf { it.isNotBlank() }
+                val totalContributions = parts.getOrNull(3)?.trim()?.toIntOrNull() ?: 1
+                if (login.isBlank() || totalContributions <= 0) {
+                    null
+                } else {
+                    CommunityContributor(
+                        login = login,
+                        avatarUrl = avatarUrl,
+                        profileUrl = profileUrl,
+                        totalContributions = totalContributions,
+                    )
+                }
+            }
+            .toList()
+
     private fun normalizeContributor(dto: ContributionDto): CommunityContributor? {
         val login = dto.name?.trim().orEmpty()
         val contributions = dto.total ?: 0
@@ -193,6 +273,19 @@ private object SupportersContributorsRepository {
             login = login,
             avatarUrl = dto.avatar?.trim()?.takeIf { it.isNotBlank() },
             profileUrl = dto.profile?.trim()?.takeIf { it.isNotBlank() },
+            totalContributions = contributions,
+        )
+    }
+
+    private fun normalizeGitHubContributor(dto: GitHubContributorDto): CommunityContributor? {
+        val login = dto.login?.trim().orEmpty()
+        val contributions = dto.contributions ?: 0
+        if (login.isBlank() || contributions <= 0) return null
+
+        return CommunityContributor(
+            login = login,
+            avatarUrl = dto.avatar_url?.trim()?.takeIf { it.isNotBlank() },
+            profileUrl = dto.html_url?.trim()?.takeIf { it.isNotBlank() },
             totalContributions = contributions,
         )
     }

@@ -764,6 +764,8 @@ internal fun settingsSearchEntries(
         )
     }
 
+    entries += platformSettingsSearchEntries()
+
     return entries
 }
 

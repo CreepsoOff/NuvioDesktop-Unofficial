@@ -42,6 +42,10 @@ object TraktPublicListSourceResolver {
 
     private val log = Logger.withTag("TraktPublicListSource")
     private val json = Json { ignoreUnknownKeys = true }
+    private val traktListIdQueryRegex = Regex("""[?&]id=([^&#/]+)""")
+    private val traktGlobalListPathRegex = Regex("""trakt\.tv/lists/([^/?#]+)""", RegexOption.IGNORE_CASE)
+    private val traktUserListPathRegex = Regex("""trakt\.tv/users/[^/]+/lists/([^/?#]+)""", RegexOption.IGNORE_CASE)
+    private val traktListSlugRegex = Regex("""[A-Za-z0-9_-]+""")
 
     suspend fun resolve(source: CollectionSource, page: Int = 1): CatalogPage = withContext(Dispatchers.Default) {
         val listId = source.traktListId?.takeIf { it > 0L } ?: error("Missing Trakt list ID")
@@ -258,25 +262,25 @@ object TraktPublicListSourceResolver {
         val trimmed = input.trim()
         if (trimmed.isBlank()) return null
         trimmed.toLongOrNull()?.let { return it.toString() }
-        Regex("""[?&]id=([^&#/]+)""")
+        traktListIdQueryRegex
             .find(trimmed)
             ?.groupValues
             ?.getOrNull(1)
             ?.takeIf { it.isNotBlank() }
             ?.let { return it }
-        Regex("""trakt\.tv/lists/([^/?#]+)""", RegexOption.IGNORE_CASE)
+        traktGlobalListPathRegex
             .find(trimmed)
             ?.groupValues
             ?.getOrNull(1)
             ?.takeIf { it.isNotBlank() }
             ?.let { return it }
-        Regex("""trakt\.tv/users/[^/]+/lists/([^/?#]+)""", RegexOption.IGNORE_CASE)
+        traktUserListPathRegex
             .find(trimmed)
             ?.groupValues
             ?.getOrNull(1)
             ?.takeIf { it.isNotBlank() }
             ?.let { return it }
-        return trimmed.takeIf { it.matches(Regex("""[A-Za-z0-9_-]+""")) }
+        return trimmed.takeIf { it.matches(traktListSlugRegex) }
     }
 
     private fun TmdbCollectionMediaType.toTraktType(): String =

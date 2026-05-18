@@ -51,6 +51,7 @@ import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
 import com.nuvio.app.core.ui.NuvioAnimatedWatchedBadge
+import com.nuvio.app.core.ui.NuvioImageFilterQuality
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
 import com.nuvio.app.core.ui.NuvioBottomSheetDivider
 import com.nuvio.app.core.ui.NuvioModalBottomSheet
@@ -61,6 +62,7 @@ import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
+import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.watching.application.WatchingState
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
@@ -131,9 +133,15 @@ internal fun LazyListScope.discoverContent(
         }
 
         else -> {
-            items(state.items.chunked(columns)) { rowItems ->
+            val rowCount = (state.items.size + columns - 1) / columns
+            items(
+                count = rowCount,
+                key = { rowIndex -> discoverGridRowKey(state.items, rowIndex, columns) },
+            ) { rowIndex ->
+                val startIndex = rowIndex * columns
+                val endIndex = minOf(startIndex + columns, state.items.size)
                 DiscoverGridRow(
-                    items = rowItems,
+                    items = state.items.subList(startIndex, endIndex),
                     columns = columns,
                     modifier = Modifier.padding(horizontal = 16.dp),
                     watchedKeys = watchedKeys,
@@ -313,7 +321,10 @@ private fun DiscoverOptionsSheet(
                     .fillMaxWidth()
                     .heightIn(max = 420.dp),
             ) {
-                itemsIndexed(options) { index, option ->
+                itemsIndexed(
+                    items = options,
+                    key = { _, option -> option.key },
+                ) { index, option ->
                     NuvioBottomSheetActionRow(
                         title = option.label,
                         onClick = { onSelected(option) },
@@ -334,6 +345,19 @@ private fun DiscoverOptionsSheet(
                 }
             }
         }
+    }
+}
+
+private fun discoverGridRowKey(
+    items: List<MetaPreview>,
+    rowIndex: Int,
+    columns: Int,
+): String = buildString {
+    val startIndex = rowIndex * columns
+    val endIndex = minOf(startIndex + columns, items.size)
+    for (index in startIndex until endIndex) {
+        if (index > startIndex) append('|')
+        append(items[index].stableKey())
     }
 }
 
@@ -402,6 +426,7 @@ private fun DiscoverPosterTile(
                     contentDescription = item.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
+                    filterQuality = NuvioImageFilterQuality,
                 )
             }
             NuvioAnimatedWatchedBadge(

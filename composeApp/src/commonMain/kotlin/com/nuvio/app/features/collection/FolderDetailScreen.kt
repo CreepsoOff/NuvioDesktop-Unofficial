@@ -2,6 +2,7 @@ package com.nuvio.app.features.collection
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
+import com.nuvio.app.core.ui.upgradeTmdbImageQuality
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.nuvio.app.core.ui.NuvioImageFilterQuality
 import com.nuvio.app.core.ui.NuvioPosterCard
 import com.nuvio.app.core.ui.NuvioPosterShape
 import com.nuvio.app.core.ui.NuvioScreenHeader
@@ -186,13 +188,15 @@ private fun FolderCoverImage(
     title: String,
     modifier: Modifier = Modifier,
 ) {
+    val resolvedImageUrl = remember(imageUrl) { imageUrl.upgradeTmdbImageQuality() }
     AsyncImage(
-        model = imageUrl,
+        model = resolvedImageUrl,
         contentDescription = title,
         modifier = modifier
             .fillMaxWidth()
             .height(FolderCoverHeight),
         contentScale = ContentScale.Crop,
+        filterQuality = NuvioImageFilterQuality,
     )
 }
 

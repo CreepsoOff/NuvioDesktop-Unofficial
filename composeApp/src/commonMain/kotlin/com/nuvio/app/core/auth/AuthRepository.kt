@@ -44,6 +44,13 @@ object AuthRepository {
             )
         }
 
+        if (!SupabaseProvider.isConfigured) {
+            if (savedAnonId == null) {
+                _state.value = AuthState.Unauthenticated
+            }
+            return
+        }
+
         scope.launch {
             SupabaseProvider.client.auth.sessionStatus.collect { status ->
                 if (AuthStorage.loadAnonymousUserId() != null) return@collect
@@ -84,6 +91,7 @@ object AuthRepository {
 
     suspend fun signUpWithEmail(email: String, password: String): Result<Unit> = runCatching {
         _error.value = null
+        ensureSupabaseConfigured()
         SupabaseProvider.client.auth.signUpWith(Email) {
             this.email = email
             this.password = password
@@ -96,6 +104,7 @@ object AuthRepository {
 
     suspend fun signInWithEmail(email: String, password: String): Result<Unit> = runCatching {
         _error.value = null
+        ensureSupabaseConfigured()
         SupabaseProvider.client.auth.signInWith(Email) {
             this.email = email
             this.password = password
@@ -115,7 +124,7 @@ object AuthRepository {
         _state.value = AuthState.Unauthenticated
         LocalAccountDataCleaner.wipe()
     }.onFailure { e ->
-        log.e(e) { "Sign-out failed" }
+        log.e(e) { "Auth sign-out failed" }
         _error.value = e.message ?: getString(Res.string.auth_sign_out_failed)
     }
 
@@ -125,11 +134,17 @@ object AuthRepository {
         SupabaseProvider.client.auth.signOut()
         LocalAccountDataCleaner.wipe()
     }.onFailure { e ->
-        log.e(e) { "Account deletion failed" }
+        log.e(e) { "Auth account deletion failed" }
         _error.value = e.message ?: getString(Res.string.auth_account_deletion_failed)
     }
 
     fun clearError() {
         _error.value = null
+    }
+
+    private fun ensureSupabaseConfigured() {
+        check(SupabaseProvider.isConfigured) {
+            "Supabase anon key is missing. Set SUPABASE_ANON_KEY in local.properties and rebuild the desktop app."
+        }
     }
 }

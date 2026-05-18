@@ -1,12 +1,19 @@
 package com.nuvio.app.features.details
 
+import com.nuvio.app.testing.useEnglishTestLanguage
 import com.nuvio.app.features.watched.WatchedItem
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 class SeriesPlaybackResolverTest {
+    @BeforeTest
+    fun setUp() {
+        useEnglishTestLanguage()
+    }
+
     @Test
     fun seriesPrimaryAction_uses_latest_watched_episode_when_manual_mark_exists() {
         val meta = MetaDetails(

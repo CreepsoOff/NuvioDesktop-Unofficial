@@ -1,0 +1,254 @@
+name: "Copilot Setup Steps"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/copilot-setup-steps.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/copilot-setup-steps.yml"
+
+jobs:
+  copilot-setup-steps:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 59
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Show runner and repository context
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Runner name:     $env:RUNNER_NAME"
+          Write-Host "Runner OS:       $env:RUNNER_OS"
+          Write-Host "Runner arch:     $env:RUNNER_ARCH"
+          Write-Host "Repository:      $env:GITHUB_REPOSITORY"
+          Write-Host "Ref:             $env:GITHUB_REF"
+          Write-Host "Ref name:        $env:GITHUB_REF_NAME"
+          Write-Host "Workspace:       $env:GITHUB_WORKSPACE"
+          Write-Host ""
+
+          git --version
+          git status --short --branch
+          git remote -v
+          git submodule status --recursive
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Force Java 21 tools first in PATH
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          if ([string]::IsNullOrWhiteSpace($env:JAVA_HOME)) {
+            throw "JAVA_HOME is empty after actions/setup-java."
+          }
+
+          $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+
+          Write-Host "JAVA_HOME=$env:JAVA_HOME"
+          java -version
+          javac -version
+          jpackage --version
+          where.exe java
+          where.exe javac
+          where.exe jpackage
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Verify Windows build tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+
+          Write-Host "=== Java ==="
+          java -version
+          javac -version
+          jpackage --version
+          Write-Host "JAVA_HOME=$env:JAVA_HOME"
+          where.exe java
+          where.exe javac
+          where.exe jpackage
+
+          Write-Host ""
+          Write-Host "=== Gradle wrapper ==="
+          if (-not (Test-Path ".\gradlew.bat")) {
+            throw "gradlew.bat not found at repository root."
+          }
+          .\gradlew.bat --version --no-daemon
+
+          Write-Host ""
+          Write-Host "=== Gradle wrapper properties ==="
+          if (Test-Path ".\gradle\wrapper\gradle-wrapper.properties") {
+            Get-Content ".\gradle\wrapper\gradle-wrapper.properties"
+          } else {
+            Write-Warning "gradle-wrapper.properties not found."
+          }
+
+          Write-Host ""
+          Write-Host "=== Git LFS ==="
+          git lfs version
+
+          Write-Host ""
+          Write-Host "=== CMake ==="
+          cmake --version
+          where.exe cmake
+
+          Write-Host ""
+          Write-Host "=== Ninja ==="
+          ninja --version
+          where.exe ninja
+
+          Write-Host ""
+          Write-Host "=== MSVC cl ==="
+          cl 2>&1 | Select-Object -First 10
+          where.exe cl
+
+      - name: Verify optional MPV CLI without user config
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          Write-Host "=== Optional global MPV ==="
+          Write-Host "This is only an environment sanity check."
+          Write-Host "Nuvio Desktop playback validation must use the repository MediaMP/libmpv integration, not this global mpv.exe."
+          where.exe mpv
+          mpv --no-config --version
+
+      - name: Create local.properties from Copilot Agent secrets
+        shell: pwsh
+        env:
+          ACTIONS_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          ACTIONS_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          ACTIONS_TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+          ACTIONS_TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+          ACTIONS_TRAKT_REDIRECT_URI: ${{ secrets.TRAKT_REDIRECT_URI }}
+          ACTIONS_CONTRIBUTIONS_URL: ${{ secrets.CONTRIBUTIONS_URL }}
+          ACTIONS_CONTRIBUTIONS_EXTRA: ${{ secrets.CONTRIBUTIONS_EXTRA }}
+          ACTIONS_DONATIONS_BASE_URL: ${{ secrets.DONATIONS_BASE_URL }}
+          ACTIONS_DONATIONS_DONATE_URL: ${{ secrets.DONATIONS_DONATE_URL }}
+          ACTIONS_INTRODB_API_URL: ${{ secrets.INTRODB_API_URL }}
+          ACTIONS_IMDB_RATINGS_API_BASE_URL: ${{ secrets.IMDB_RATINGS_API_BASE_URL }}
+          ACTIONS_IMDB_TAPFRAME_API_BASE_URL: ${{ secrets.IMDB_TAPFRAME_API_BASE_URL }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          function Get-ConfigValue {
+            param(
+              [Parameter(Mandatory = $true)]
+              [string]$Name,
+
+              [Parameter(Mandatory = $true)]
+              [string]$ActionsName
+            )
+
+            $agentValue = [Environment]::GetEnvironmentVariable($Name)
+            if (-not [string]::IsNullOrWhiteSpace($agentValue)) {
+              return $agentValue
+            }
+
+            $actionsValue = [Environment]::GetEnvironmentVariable($ActionsName)
+            if (-not [string]::IsNullOrWhiteSpace($actionsValue)) {
+              return $actionsValue
+            }
+
+            return ""
+          }
+
+          $values = [ordered]@{
+            SUPABASE_URL               = Get-ConfigValue "SUPABASE_URL" "ACTIONS_SUPABASE_URL"
+            SUPABASE_ANON_KEY          = Get-ConfigValue "SUPABASE_ANON_KEY" "ACTIONS_SUPABASE_ANON_KEY"
+            TRAKT_CLIENT_ID            = Get-ConfigValue "TRAKT_CLIENT_ID" "ACTIONS_TRAKT_CLIENT_ID"
+            TRAKT_CLIENT_SECRET        = Get-ConfigValue "TRAKT_CLIENT_SECRET" "ACTIONS_TRAKT_CLIENT_SECRET"
+            TRAKT_REDIRECT_URI         = Get-ConfigValue "TRAKT_REDIRECT_URI" "ACTIONS_TRAKT_REDIRECT_URI"
+            CONTRIBUTIONS_URL          = Get-ConfigValue "CONTRIBUTIONS_URL" "ACTIONS_CONTRIBUTIONS_URL"
+            CONTRIBUTIONS_EXTRA        = Get-ConfigValue "CONTRIBUTIONS_EXTRA" "ACTIONS_CONTRIBUTIONS_EXTRA"
+            DONATIONS_BASE_URL         = Get-ConfigValue "DONATIONS_BASE_URL" "ACTIONS_DONATIONS_BASE_URL"
+            DONATIONS_DONATE_URL       = Get-ConfigValue "DONATIONS_DONATE_URL" "ACTIONS_DONATIONS_DONATE_URL"
+            INTRODB_API_URL            = Get-ConfigValue "INTRODB_API_URL" "ACTIONS_INTRODB_API_URL"
+            IMDB_RATINGS_API_BASE_URL  = Get-ConfigValue "IMDB_RATINGS_API_BASE_URL" "ACTIONS_IMDB_RATINGS_API_BASE_URL"
+            IMDB_TAPFRAME_API_BASE_URL = Get-ConfigValue "IMDB_TAPFRAME_API_BASE_URL" "ACTIONS_IMDB_TAPFRAME_API_BASE_URL"
+          }
+
+          $missing = @()
+          foreach ($entry in $values.GetEnumerator()) {
+            if ([string]::IsNullOrWhiteSpace($entry.Value)) {
+              $missing += $entry.Key
+            }
+          }
+
+          if ($missing.Count -gt 0) {
+            Write-Warning "Missing config values: $($missing -join ', ')"
+            Write-Warning "For Copilot Coding Agent, check Settings > Secrets and variables > Agents."
+          }
+
+          $lines = foreach ($entry in $values.GetEnumerator()) {
+            "$($entry.Key)=$($entry.Value)"
+          }
+
+          $lines | Set-Content -Path "local.properties" -Encoding UTF8
+
+          Write-Host "local.properties created. Redacted keys:"
+          foreach ($entry in $values.GetEnumerator()) {
+            if ([string]::IsNullOrWhiteSpace($entry.Value)) {
+              Write-Host "$($entry.Key)=<missing>"
+            } else {
+              Write-Host "$($entry.Key)=<redacted>"
+            }
+          }
+
+      - name: Check repository guidance files
+        shell: pwsh
+        run: |
+          $files = @("AGENTS.md", "CLAUDE.md", "PLAN.md", "README.md")
+
+          foreach ($file in $files) {
+            if (Test-Path ".\$file") {
+              Write-Host ""
+              Write-Host "=== Found $file ==="
+              Get-Content ".\$file" -TotalCount 120
+            } else {
+              Write-Host "$file not found."
+            }
+          }
+
+      - name: Preflight desktop compile
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+          .\gradlew.bat :composeApp:desktopMainClasses --no-daemon --stacktrace
+
+      - name: Preflight Kotlin desktop compile
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+          .\gradlew.bat :composeApp:compileKotlinDesktop --no-daemon --stacktrace
+
+      - name: Final git state
+        if: always()
+        shell: pwsh
+        run: |
+          git status --short --branch

@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,6 +34,7 @@ import com.nuvio.app.core.ui.PosterLandscapeAspectRatio
 import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
+import com.nuvio.app.core.ui.upgradeTmdbImageQuality
 import com.nuvio.app.features.collection.Collection
 import com.nuvio.app.features.collection.CollectionFolder
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
@@ -89,10 +93,13 @@ private fun HomeCollectionRowSectionContent(
         showHeaderAccent = !homeCatalogSettings.hideCatalogUnderline,
         key = { folder -> "collection_${collection.id}_folder_${folder.id}" },
     ) { folder ->
+        val folderClick = onFolderClick?.let { callback ->
+            remember(collection.id, folder.id, callback) { { callback(collection.id, folder.id) } }
+        }
         CollectionFolderCard(
             folder = folder,
             animateGifs = animateGifs,
-            onClick = onFolderClick?.let { { it(collection.id, folder.id) } },
+            onClick = folderClick,
         )
     }
 }
@@ -130,7 +137,6 @@ private fun CollectionFolderCard(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         val shapeCorner = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
-        val imageUrl = collectionFolderCardImageUrl(folder)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -147,14 +153,23 @@ private fun CollectionFolderCard(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
+                val hoverInteractionSource = remember { MutableInteractionSource() }
+                val isHovered by hoverInteractionSource.collectIsHoveredAsState()
+                val coverImageUrl = collectionFolderStaticCoverUrl(folder)
+                val animatedImageUrl = collectionFolderFocusGifUrl(folder)
+                val imageUrl = firstNonBlank(coverImageUrl, animatedImageUrl)
                 when {
                     !imageUrl.isNullOrBlank() -> {
                         CollectionCardRemoteImage(
                             imageUrl = imageUrl,
+                            animatedImageUrl = animatedImageUrl,
                             contentDescription = folder.title,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .hoverable(hoverInteractionSource),
                             contentScale = ContentScale.Crop,
-                            animateIfPossible = animateGifs && isAnimatedCollectionFolderImage(folder, imageUrl),
+                            animateIfPossible = animateGifs && !animatedImageUrl.isNullOrBlank(),
+                            animateNow = isHovered,
                         )
                     }
                     !folder.coverEmoji.isNullOrBlank() -> {
@@ -177,6 +192,7 @@ private fun CollectionFolderCard(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .hoverable(hoverInteractionSource)
                             .posterCardClickable(onClick = onClick, onLongClick = null),
                     )
                 }
@@ -195,22 +211,21 @@ private fun CollectionFolderCard(
     }
 }
 
-private fun collectionFolderCardImageUrl(folder: CollectionFolder): String? {
-    return if (folder.mobileFocusGifEnabled) {
-        firstNonBlank(folder.focusGifUrl, folder.coverImageUrl)
-    } else {
-        firstNonBlank(folder.coverImageUrl)
-    }
-}
+private fun collectionFolderStaticCoverUrl(folder: CollectionFolder): String? =
+    firstNonBlank(folder.coverImageUrl)?.upgradeTmdbImageQuality()
 
-private fun firstNonBlank(vararg candidates: String?): String? {
-    return candidates.firstOrNull { !it.isNullOrBlank() }?.trim()
-}
+private fun collectionFolderFocusGifUrl(folder: CollectionFolder): String? =
+    if (folder.focusGifEnabled) firstNonBlank(folder.focusGifUrl) else null
 
-private fun isAnimatedCollectionFolderImage(
-    folder: CollectionFolder,
-    imageUrl: String,
-): Boolean {
-    val gifUrl = firstNonBlank(folder.focusGifUrl) ?: return false
-    return folder.mobileFocusGifEnabled && imageUrl == gifUrl
+private fun firstNonBlank(
+    first: String?,
+    second: String? = null,
+    third: String? = null,
+    fourth: String? = null,
+): String? {
+    first?.takeIf { it.isNotBlank() }?.trim()?.let { return it }
+    second?.takeIf { it.isNotBlank() }?.trim()?.let { return it }
+    third?.takeIf { it.isNotBlank() }?.trim()?.let { return it }
+    fourth?.takeIf { it.isNotBlank() }?.trim()?.let { return it }
+    return null
 }

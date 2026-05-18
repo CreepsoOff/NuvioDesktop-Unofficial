@@ -264,7 +264,7 @@ private fun TraktSettingsActionRow(
             modifier = Modifier
                 .weight(1f)
                 .padding(end = 12.dp)
-                .widthIn(max = if (isTablet) 560.dp else Dp.Unspecified),
+                .widthIn(max = if (isTablet) 720.dp else Dp.Unspecified),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(

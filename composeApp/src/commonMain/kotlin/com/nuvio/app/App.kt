@@ -25,15 +25,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.rounded.FullscreenExit
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.material3.Scaffold
@@ -43,6 +46,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -130,11 +134,14 @@ import com.nuvio.app.features.library.toMetaPreview
 import com.nuvio.app.features.notifications.EpisodeReleaseNotificationsRepository
 import com.nuvio.app.features.player.PlayerLaunch
 import com.nuvio.app.features.player.PlayerLaunchStore
+import com.nuvio.app.features.player.ManageFullscreenKeyboardShortcuts
+import com.nuvio.app.features.player.PlayerFullscreenController
 import com.nuvio.app.features.player.PlayerRoute
 import com.nuvio.app.features.player.PlayerScreen
 import com.nuvio.app.features.player.ExternalPlayerOpenResult
 import com.nuvio.app.features.player.ExternalPlayerPlatform
 import com.nuvio.app.features.player.ExternalPlayerPlaybackRequest
+import com.nuvio.app.features.player.rememberPlayerFullscreenController
 import com.nuvio.app.features.player.sanitizePlaybackHeaders
 import com.nuvio.app.features.player.sanitizePlaybackResponseHeaders
 import com.nuvio.app.features.profiles.AvatarRepository
@@ -307,9 +314,11 @@ private fun NativeNavigationTab.toAppScreenTab(): AppScreenTab = when (this) {
 private fun PlayerLaunch.toExternalPlayerPlaybackRequest(): ExternalPlayerPlaybackRequest =
     ExternalPlayerPlaybackRequest(
         sourceUrl = sourceUrl,
+        sourceAudioUrl = sourceAudioUrl,
         title = title,
         streamTitle = streamTitle,
         sourceHeaders = sourceHeaders,
+        initialPositionMs = initialPositionMs,
     )
 
 private enum class AppGateScreen {
@@ -537,6 +546,7 @@ private fun MainAppContent(
 ) {
         val navController = rememberNavController()
         val appUpdaterController = rememberAppUpdaterController()
+        val appUpdaterState by appUpdaterController.uiState.collectAsStateWithLifecycle()
         remember {
             EpisodeReleaseNotificationsRepository.ensureLoaded()
         }
@@ -558,6 +568,10 @@ private fun MainAppContent(
         val libraryScrollToTopRequests = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
         val settingsRootActionRequests = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
         val currentBackStackEntry by navController.currentBackStackEntryAsState()
+        val isHomeRouteActive = selectedTab == AppScreenTab.Home &&
+            currentBackStackEntry?.destination?.hasRoute<TabsRoute>() == true
+        ManageFullscreenKeyboardShortcuts(isHomeRouteActive = isHomeRouteActive)
+        val fullscreenController = rememberPlayerFullscreenController()
         val liquidGlassNativeTabBarEnabled by remember {
             ThemeSettingsRepository.liquidGlassNativeTabBarEnabled
         }.collectAsStateWithLifecycle()
@@ -572,6 +586,7 @@ private fun MainAppContent(
         var pickerMembership by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
         var pickerPending by remember { mutableStateOf(false) }
         var pickerError by remember { mutableStateOf<String?>(null) }
+        val selectedAppLanguage by remember { ThemeSettingsRepository.selectedAppLanguage }.collectAsStateWithLifecycle()
         val addonsUiState by remember {
             AddonRepository.initialize()
             AddonRepository.uiState
@@ -1087,35 +1102,37 @@ private fun MainAppContent(
                             contentWindowInsets = WindowInsets(0),
                             bottomBar = {
                                 if (!isTabletLayout && !useNativeBottomTabs) {
-                                    NuvioNavigationBar {
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Home,
-                                            onClick = { handleRootTabClick(AppScreenTab.Home) },
-                                            icon = Icons.Filled.Home,
-                                            contentDescription = stringResource(Res.string.compose_nav_home),
-                                        )
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Search,
-                                            onClick = { handleRootTabClick(AppScreenTab.Search) },
-                                            icon = Res.drawable.sidebar_search,
-                                            contentDescription = stringResource(Res.string.compose_nav_search),
-                                        )
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Library,
-                                            onClick = { handleRootTabClick(AppScreenTab.Library) },
-                                            icon = Res.drawable.sidebar_library,
-                                            contentDescription = stringResource(Res.string.compose_nav_library),
-                                        )
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Settings,
-                                            onClick = { handleRootTabClick(AppScreenTab.Settings) },
-                                        ) {
-                                            ProfileSwitcherTab(
+                                    key(selectedAppLanguage.code) {
+                                        NuvioNavigationBar {
+                                            NavItem(
+                                                selected = selectedTab == AppScreenTab.Home,
+                                                onClick = { handleRootTabClick(AppScreenTab.Home) },
+                                                icon = Icons.Filled.Home,
+                                                contentDescription = stringResource(Res.string.compose_nav_home),
+                                            )
+                                            NavItem(
+                                                selected = selectedTab == AppScreenTab.Search,
+                                                onClick = { handleRootTabClick(AppScreenTab.Search) },
+                                                icon = Res.drawable.sidebar_search,
+                                                contentDescription = stringResource(Res.string.compose_nav_search),
+                                            )
+                                            NavItem(
+                                                selected = selectedTab == AppScreenTab.Library,
+                                                onClick = { handleRootTabClick(AppScreenTab.Library) },
+                                                icon = Res.drawable.sidebar_library,
+                                                contentDescription = stringResource(Res.string.compose_nav_library),
+                                            )
+                                            NavItem(
                                                 selected = selectedTab == AppScreenTab.Settings,
                                                 onClick = { handleRootTabClick(AppScreenTab.Settings) },
-                                                onProfileSelected = onProfileSelected,
-                                                onAddProfileRequested = onSwitchProfile,
-                                            )
+                                            ) {
+                                                ProfileSwitcherTab(
+                                                    selected = selectedTab == AppScreenTab.Settings,
+                                                    onClick = { handleRootTabClick(AppScreenTab.Settings) },
+                                                    onProfileSelected = onProfileSelected,
+                                                    onAddProfileRequested = onSwitchProfile,
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -1187,6 +1204,12 @@ private fun MainAppContent(
                                         } else {
                                             null
                                         },
+                                        nightlyUpdateModeEnabled = appUpdaterState.nightlyBuildModeEnabled,
+                                        onNightlyUpdateModeChange = if (AppFeaturePolicy.inAppUpdaterEnabled) {
+                                            appUpdaterController::setNightlyBuildMode
+                                        } else {
+                                            null
+                                        },
                                         onCollectionsSettingsClick = { navController.navigate(CollectionsRoute) },
                                         onFolderClick = { collectionId, folderId ->
                                             navController.navigate(FolderDetailRoute(collectionId = collectionId, folderId = folderId))
@@ -1196,12 +1219,14 @@ private fun MainAppContent(
                                 }
 
                                 if (isTabletLayout && !useNativeBottomTabs) {
-                                    TabletFloatingTopBar(
-                                        selectedTab = selectedTab,
-                                        onTabSelected = ::handleRootTabClick,
-                                        onProfileSelected = onProfileSelected,
-                                        onAddProfileRequested = onSwitchProfile,
-                                    )
+                                    key(selectedAppLanguage.code) {
+                                        TabletFloatingTopBar(
+                                            selectedTab = selectedTab,
+                                            onTabSelected = ::handleRootTabClick,
+                                            onProfileSelected = onProfileSelected,
+                                            onAddProfileRequested = onSwitchProfile,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1411,7 +1436,7 @@ private fun MainAppContent(
 
                         hasResolvedVideoId = false
                         val metaType = launch.parentMetaType ?: launch.type
-                        val metaId = launch.parentMetaId ?: return@LaunchedEffect
+                        val metaId = launch.parentMetaId
                         val resolvedVideoId = runCatching {
                             MetaDetailsRepository.fetch(metaType, metaId)
                         }.getOrNull()
@@ -2226,6 +2251,14 @@ private fun MainAppContent(
                     .zIndex(15f),
             )
 
+            GlobalFullscreenExitButton(
+                controller = fullscreenController,
+                hideOnPlayerRoute = currentBackStackEntry?.destination?.hasRoute<PlayerRoute>() == true,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .zIndex(18f),
+            )
+
             NuvioToastHost(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -2239,6 +2272,46 @@ private fun MainAppContent(
                     .zIndex(25f),
             )
         }
+}
+
+@Composable
+private fun GlobalFullscreenExitButton(
+    controller: PlayerFullscreenController,
+    hideOnPlayerRoute: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = controller.isFullscreenSupported && controller.isFullscreen && !hideOnPlayerRoute,
+        enter = fadeIn(animationSpec = tween(140)),
+        exit = fadeOut(animationSpec = tween(120)),
+        modifier = modifier.padding(
+            top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 10.dp,
+            end = 14.dp,
+        ),
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.74f),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 3.dp,
+            shadowElevation = 8.dp,
+        ) {
+            IconButton(
+                onClick = {
+                    if (controller.isFullscreen) {
+                        controller.toggleFullscreen()
+                    }
+                },
+                modifier = Modifier.size(42.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.FullscreenExit,
+                    contentDescription = stringResource(Res.string.compose_player_exit_fullscreen),
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -2291,6 +2364,8 @@ private fun AppTabHost(
     onSupportersContributorsSettingsClick: () -> Unit = {},
     onLicensesAttributionsSettingsClick: () -> Unit = {},
     onCheckForUpdatesClick: (() -> Unit)? = null,
+    nightlyUpdateModeEnabled: Boolean = false,
+    onNightlyUpdateModeChange: ((Boolean) -> Unit)? = null,
     onCollectionsSettingsClick: () -> Unit = {},
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
     onInitialHomeContentRendered: () -> Unit = {},
@@ -2351,6 +2426,8 @@ private fun AppTabHost(
                         onSupportersContributorsClick = onSupportersContributorsSettingsClick,
                         onLicensesAttributionsClick = onLicensesAttributionsSettingsClick,
                         onCheckForUpdatesClick = onCheckForUpdatesClick,
+                        nightlyUpdateModeEnabled = nightlyUpdateModeEnabled,
+                        onNightlyUpdateModeChange = onNightlyUpdateModeChange,
                         onCollectionsClick = onCollectionsSettingsClick,
                     )
                 }

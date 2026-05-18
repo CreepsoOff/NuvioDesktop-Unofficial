@@ -4,6 +4,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +17,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,15 +28,26 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
+import coil3.size.Precision
+import coil3.size.Size
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.home_view_all
 import nuvio.composeapp.generated.resources.poster_logo_content_description
@@ -63,6 +78,7 @@ fun <T> NuvioShelfSection(
     key: ((T) -> Any)? = null,
     itemContent: @Composable (T) -> Unit,
 ) {
+    val rowState = rememberLazyListState()
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -77,6 +93,10 @@ fun <T> NuvioShelfSection(
             )
         }
         LazyRow(
+            state = rowState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .shelfRowMouseDragScroll(rowState),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
@@ -96,6 +116,44 @@ fun <T> NuvioShelfSection(
     }
 }
 
+private fun Modifier.shelfRowMouseDragScroll(listState: LazyListState): Modifier =
+    pointerInput(listState) {
+        awaitEachGesture {
+            val down = awaitFirstDown(pass = PointerEventPass.Initial)
+            if (down.type != PointerType.Mouse) return@awaitEachGesture
+
+            var totalDx = 0f
+            var totalDy = 0f
+            var dragging = false
+
+            while (true) {
+                val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                if (!change.pressed) break
+
+                val delta = change.position - change.previousPosition
+                totalDx += delta.x
+                totalDy += delta.y
+
+                if (!dragging) {
+                    val verticalDrag =
+                        abs(totalDy) > viewConfiguration.touchSlop && abs(totalDy) > abs(totalDx)
+                    val horizontalDrag =
+                        abs(totalDx) > viewConfiguration.touchSlop && abs(totalDx) > abs(totalDy)
+                    when {
+                        verticalDrag -> break
+                        horizontalDrag -> dragging = true
+                        else -> continue
+                    }
+                }
+
+                listState.dispatchRawDelta(-delta.x)
+                change.consume()
+            }
+        }
+    }
+
 @Composable
 fun NuvioPosterCard(
     title: String,
@@ -113,9 +171,34 @@ fun NuvioPosterCard(
     val posterCardStyle = rememberPosterCardStyleUiState()
     val cardWidth = shape.cardWidth(basePosterWidthDp = posterCardStyle.widthDp)
     val cardShape = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
+    val platformContext = LocalPlatformContext.current
+    val density = LocalDensity.current
+    val resolvedImageUrl = remember(imageUrl) { imageUrl?.upgradeTmdbImageQuality() }
+    val resolvedBottomLeftLogoUrl = remember(bottomLeftLogoUrl) { bottomLeftLogoUrl?.upgradeTmdbImageQuality() }
+    val imageRequest = remember(platformContext, resolvedImageUrl, cardWidth, shape, density) {
+        resolvedImageUrl?.let {
+            val widthPx = with(density) { cardWidth.roundToPx() }.coerceAtLeast(1)
+            val heightPx = (widthPx / shape.aspectRatio).roundToInt().coerceAtLeast(1)
+            val decodeWidthPx = nuvioQualityDecodeDimensionPx(widthPx)
+            val decodeHeightPx = nuvioQualityDecodeDimensionPx(heightPx)
+            ImageRequest.Builder(platformContext)
+                .data(it)
+                .size(Size(decodeWidthPx, decodeHeightPx))
+                .precision(Precision.EXACT)
+                .memoryCacheKey("poster-card:$decodeWidthPx:$decodeHeightPx:${it.hashCode()}")
+                .diskCacheKey(it)
+                .build()
+        }
+    }
     val catalogLogoOverlaySize = catalogLogoOverlaySize(
         basePosterWidthDp = posterCardStyle.widthDp,
         shape = shape,
+    )
+    val bottomLeftLogoRequest = rememberSizedImageRequest(
+        imageUrl = resolvedBottomLeftLogoUrl,
+        width = catalogLogoOverlaySize.width,
+        height = catalogLogoOverlaySize.height,
+        memoryCacheKeyPrefix = "poster-logo",
     )
     val shouldShowTitleBelow = showTitleBelow && !posterCardStyle.hideLabelsEnabled
 
@@ -132,12 +215,13 @@ fun NuvioPosterCard(
                 .posterCardClickable(onClick = onClick, onLongClick = onLongClick),
             contentAlignment = Alignment.Center,
         ) {
-            if (imageUrl != null) {
+            if (resolvedImageUrl != null) {
                 AsyncImage(
-                    model = imageUrl,
+                    model = imageRequest,
                     contentDescription = title,
                     modifier = Modifier.matchParentSize(),
                     contentScale = ContentScale.Crop,
+                    filterQuality = NuvioImageFilterQuality,
                 )
             } else {
                 Text(
@@ -151,20 +235,21 @@ fun NuvioPosterCard(
                 )
             }
 
-            if (!bottomLeftLogoUrl.isNullOrBlank() || !bottomLeftText.isNullOrBlank()) {
+            if (!resolvedBottomLeftLogoUrl.isNullOrBlank() || !bottomLeftText.isNullOrBlank()) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(horizontal = 10.dp, vertical = 10.dp),
                 ) {
-                    if (!bottomLeftLogoUrl.isNullOrBlank()) {
+                    if (!resolvedBottomLeftLogoUrl.isNullOrBlank()) {
                         AsyncImage(
-                            model = bottomLeftLogoUrl,
+                            model = bottomLeftLogoRequest ?: resolvedBottomLeftLogoUrl,
                             contentDescription = stringResource(Res.string.poster_logo_content_description, title),
                             modifier = Modifier
                                 .width(catalogLogoOverlaySize.width)
                                 .height(catalogLogoOverlaySize.height),
                             contentScale = ContentScale.Fit,
+                            filterQuality = NuvioImageFilterQuality,
                         )
                     } else {
                         Text(
@@ -313,22 +398,27 @@ private data class CatalogLogoOverlaySize(
 private fun catalogLogoOverlaySize(
     basePosterWidthDp: Int,
     shape: NuvioPosterShape,
-): CatalogLogoOverlaySize =
-    if (shape == NuvioPosterShape.Landscape) {
-        when {
-            basePosterWidthDp <= 108 -> CatalogLogoOverlaySize(width = 92.dp, height = 24.dp, textMaxWidth = 120.dp)
-            basePosterWidthDp <= 120 -> CatalogLogoOverlaySize(width = 104.dp, height = 28.dp, textMaxWidth = 132.dp)
-            basePosterWidthDp <= 132 -> CatalogLogoOverlaySize(width = 116.dp, height = 30.dp, textMaxWidth = 144.dp)
-            else -> CatalogLogoOverlaySize(width = 128.dp, height = 34.dp, textMaxWidth = 156.dp)
-        }
+): CatalogLogoOverlaySize {
+    fun scaledDp(value: Float, min: Int, max: Int): Dp =
+        value.roundToInt().coerceIn(min, max).dp
+
+    return if (shape == NuvioPosterShape.Landscape) {
+        val landscapeWidth = landscapePosterWidth(basePosterWidthDp).value
+        val landscapeHeight = landscapeWidth / PosterLandscapeAspectRatio
+        CatalogLogoOverlaySize(
+            width = scaledDp(landscapeWidth * 0.58f, min = 112, max = 300),
+            height = scaledDp(landscapeHeight * 0.46f, min = 42, max = 110),
+            textMaxWidth = scaledDp(landscapeWidth * 0.72f, min = 140, max = 340),
+        )
     } else {
-        when {
-            basePosterWidthDp <= 108 -> CatalogLogoOverlaySize(width = 72.dp, height = 18.dp, textMaxWidth = 92.dp)
-            basePosterWidthDp <= 120 -> CatalogLogoOverlaySize(width = 80.dp, height = 20.dp, textMaxWidth = 104.dp)
-            basePosterWidthDp <= 132 -> CatalogLogoOverlaySize(width = 88.dp, height = 22.dp, textMaxWidth = 112.dp)
-            else -> CatalogLogoOverlaySize(width = 96.dp, height = 24.dp, textMaxWidth = 124.dp)
-        }
+        val logoWidth = scaledDp(basePosterWidthDp * 0.68f, min = 72, max = 140)
+        CatalogLogoOverlaySize(
+            width = logoWidth,
+            height = scaledDp(logoWidth.value * 0.25f, min = 18, max = 36),
+            textMaxWidth = scaledDp(basePosterWidthDp * 0.86f, min = 92, max = 170),
+        )
     }
+}
 
 private fun NuvioPosterShape.cardWidth(basePosterWidthDp: Int): Dp =
     when (this) {
@@ -341,12 +431,20 @@ private fun NuvioPosterShape.cardWidth(basePosterWidthDp: Int): Dp =
 internal fun Modifier.posterCardClickable(
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
-): Modifier =
-    if (onClick != null || onLongClick != null) {
-        combinedClickable(
-            onClick = { onClick?.invoke() },
-            onLongClick = onLongClick,
-        )
-    } else {
-        this
-    }
+): Modifier {
+    val withPrimaryGestures =
+        if (onClick != null || onLongClick != null) {
+            this.combinedClickable(
+                onClick = { onClick?.invoke() },
+                onLongClick = onLongClick,
+            )
+        } else {
+            this
+        }
+    return withPrimaryGestures.desktopContextMenuPointer(onLongClick)
+}
+
+internal fun String.upgradeTmdbImageQuality(): String {
+    if (!contains("image.tmdb.org/t/p/", ignoreCase = true)) return this
+    return replace(Regex("/[wh]\\d+/"), "/original/")
+}

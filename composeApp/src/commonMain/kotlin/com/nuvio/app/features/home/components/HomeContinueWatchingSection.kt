@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.nuvio.app.core.ui.desktopContextMenuPointer
+import com.nuvio.app.core.ui.NuvioImageFilterQuality
 import com.nuvio.app.core.ui.NuvioProgressBar
 import com.nuvio.app.core.ui.NuvioShelfSection
 import com.nuvio.app.core.ui.posterCardClickable
@@ -70,34 +72,24 @@ private fun localizedContinueWatchingMetaLine(item: ContinueWatchingItem): Strin
 private fun ContinueWatchingItem.continueWatchingArtworkUrl(
     useEpisodeThumbnails: Boolean,
 ): String? = when {
-    isNextUp && useEpisodeThumbnails -> firstNonBlank(
-        episodeThumbnail,
-        poster,
-        background,
-        imageUrl,
-    )
-    isNextUp -> firstNonBlank(
-        poster,
-        background,
-        episodeThumbnail,
-        imageUrl,
-    )
-    useEpisodeThumbnails -> firstNonBlank(
-        episodeThumbnail,
-        poster,
-        background,
-        imageUrl,
-    )
-    else -> firstNonBlank(
-        poster,
-        background,
-        episodeThumbnail,
-        imageUrl,
-    )
+    isNextUp && useEpisodeThumbnails -> firstNonBlank(episodeThumbnail, poster, background, imageUrl)
+    isNextUp -> firstNonBlank(poster, background, episodeThumbnail, imageUrl)
+    useEpisodeThumbnails -> firstNonBlank(episodeThumbnail, poster, background, imageUrl)
+    else -> firstNonBlank(poster, background, episodeThumbnail, imageUrl)
 }
 
-private fun firstNonBlank(vararg values: String?): String? =
-    values.firstOrNull { value -> !value.isNullOrBlank() }?.trim()
+private fun firstNonBlank(
+    first: String?,
+    second: String? = null,
+    third: String? = null,
+    fourth: String? = null,
+): String? {
+    first?.takeIf { it.isNotBlank() }?.trim()?.let { return it }
+    second?.takeIf { it.isNotBlank() }?.trim()?.let { return it }
+    third?.takeIf { it.isNotBlank() }?.trim()?.let { return it }
+    fourth?.takeIf { it.isNotBlank() }?.trim()?.let { return it }
+    return null
+}
 
 @Composable
 internal fun HomeContinueWatchingSection(
@@ -169,22 +161,28 @@ private fun HomeContinueWatchingSectionContent(
         showHeaderAccent = !homeCatalogSettings.hideCatalogUnderline,
         key = { item -> item.videoId },
     ) { item ->
+        val itemClick = onItemClick?.let { callback ->
+            remember(item, callback) { { callback(item) } }
+        }
+        val itemLongClick = onItemLongPress?.let { callback ->
+            remember(item, callback) { { callback(item) } }
+        }
         when (style) {
             ContinueWatchingSectionStyle.Wide -> ContinueWatchingWideCard(
                 item = item,
                 layout = layout,
                 useEpisodeThumbnails = useEpisodeThumbnails,
                 blurNextUp = blurNextUp,
-                onClick = onItemClick?.let { { it(item) } },
-                onLongClick = onItemLongPress?.let { { it(item) } },
+                onClick = itemClick,
+                onLongClick = itemLongClick,
             )
             ContinueWatchingSectionStyle.Poster -> ContinueWatchingPosterCard(
                 item = item,
                 layout = layout,
                 useEpisodeThumbnails = useEpisodeThumbnails,
                 blurNextUp = blurNextUp,
-                onClick = onItemClick?.let { { it(item) } },
-                onLongClick = onItemLongPress?.let { { it(item) } },
+                onClick = itemClick,
+                onLongClick = itemLongClick,
             )
         }
     }
@@ -360,7 +358,8 @@ private fun ContinueWatchingWideCard(
                 enabled = onClick != null || onLongClick != null,
                 onClick = { onClick?.invoke() },
                 onLongClick = onLongClick,
-            ),
+            )
+            .desktopContextMenuPointer(onLongClick),
     ) {
         val shouldBlurArtwork = blurNextUp && useEpisodeThumbnails && item.isNextUp
         val artworkUrl = item.continueWatchingArtworkUrl(useEpisodeThumbnails)
@@ -486,6 +485,7 @@ private fun ContinueWatchingPosterCard(
                         .fillMaxSize()
                         .then(if (shouldBlurArtwork) Modifier.blur(18.dp) else Modifier),
                     contentScale = ContentScale.Crop,
+                    filterQuality = NuvioImageFilterQuality,
                 )
             }
             if (item.progressFraction <= 0f && item.seasonNumber != null && item.episodeNumber != null) {
@@ -580,6 +580,7 @@ private fun ArtworkPanel(
                     .fillMaxSize()
                     .then(if (blurred) Modifier.blur(18.dp) else Modifier),
                 contentScale = ContentScale.Crop,
+                filterQuality = NuvioImageFilterQuality,
             )
         }
     }

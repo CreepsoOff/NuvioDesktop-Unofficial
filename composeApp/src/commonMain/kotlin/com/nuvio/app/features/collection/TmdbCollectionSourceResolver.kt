@@ -18,6 +18,8 @@ import kotlin.math.roundToInt
 object TmdbCollectionSourceResolver {
     private val log = Logger.withTag("TmdbCollectionSource")
     private val json = Json { ignoreUnknownKeys = true }
+    private val tmdbPathIdRegex = Regex("""(?:list|collection|company|network|person)/(\d+)""")
+    private val tmdbQueryIdRegex = Regex("""[?&]id=(\d+)""")
 
     suspend fun resolve(source: CollectionSource, page: Int = 1): CatalogPage = withContext(Dispatchers.Default) {
         val settings = TmdbSettingsRepository.snapshot()
@@ -168,19 +170,19 @@ object TmdbCollectionSourceResolver {
     fun parseTmdbId(input: String): Int? {
         val trimmed = input.trim()
         trimmed.toIntOrNull()?.let { return it }
-        return Regex("""(?:list|collection|company|network|person)/(\d+)""")
+        return tmdbPathIdRegex
             .find(trimmed)
             ?.groupValues
             ?.getOrNull(1)
             ?.toIntOrNull()
-            ?: Regex("""[?&]id=(\d+)""")
+            ?: tmdbQueryIdRegex
                 .find(trimmed)
                 ?.groupValues
                 ?.getOrNull(1)
                 ?.toIntOrNull()
     }
 
-    fun presets(): List<TmdbPresetSource> = listOf(
+    private val presetSources = listOf(
         TmdbPresetSource("Marvel Studios", company("Marvel Studios", 420)),
         TmdbPresetSource("Walt Disney Pictures", company("Walt Disney Pictures", 2)),
         TmdbPresetSource("Pixar", company("Pixar", 3)),
@@ -193,6 +195,8 @@ object TmdbCollectionSourceResolver {
         TmdbPresetSource("Hulu", network("Hulu", 453)),
         TmdbPresetSource("Apple TV+", network("Apple TV+", 2552)),
     )
+
+    fun presets(): List<TmdbPresetSource> = presetSources
 
     private suspend fun resolveList(
         source: CollectionSource,

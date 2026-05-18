@@ -219,6 +219,33 @@ object LibraryRepository {
         }
     }
 
+    fun removeFromTraktSection(item: LibraryItem, sectionKey: String) {
+        ensureLoaded()
+        if (!isTraktLibrarySourceActive()) {
+            remove(item.id)
+            return
+        }
+
+        syncScope.launch {
+            runCatching {
+                val snapshot = TraktLibraryRepository.getMembershipSnapshot(item)
+                if (snapshot.listMembership[sectionKey] != true) return@runCatching
+
+                TraktLibraryRepository.applyMembershipChanges(
+                    item = item,
+                    changes = TraktMembershipChanges(
+                        desiredMembership = snapshot.listMembership.toMutableMap().apply {
+                            this[sectionKey] = false
+                        },
+                    ),
+                )
+            }.onFailure { e ->
+                log.e(e) { "Failed to remove Trakt library item from section $sectionKey" }
+            }
+            publish()
+        }
+    }
+
     fun isSaved(id: String, type: String? = null): Boolean {
         ensureLoaded()
 

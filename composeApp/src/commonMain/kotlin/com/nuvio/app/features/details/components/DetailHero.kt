@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -24,6 +25,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.graphicsLayer
 import coil3.compose.AsyncImage
+import com.nuvio.app.core.ui.NuvioImageFilterQuality
+import com.nuvio.app.core.ui.upgradeTmdbImageQuality
 import com.nuvio.app.features.details.MetaDetails
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -56,7 +59,9 @@ fun DetailHero(
                     .fillMaxSize(),
                 contentAlignment = Alignment.BottomCenter,
             ) {
-                val imageUrl = meta.background ?: meta.poster
+                val imageUrl = remember(meta.background, meta.poster) {
+                    (meta.background ?: meta.poster)?.upgradeTmdbImageQuality()
+                }
                 if (imageUrl != null) {
                     AsyncImage(
                         model = imageUrl,
@@ -65,11 +70,13 @@ fun DetailHero(
                             .fillMaxSize()
                             .graphicsLayer {
                                 translationY = scrollOffset * 0.5f
-                                scaleX = 1.08f
-                                scaleY = 1.08f
+                                val baseScale = if (isTablet) 1.02f else 1.05f
+                                scaleX = baseScale
+                                scaleY = baseScale
                             },
                         alignment = if (isTablet) Alignment.TopCenter else Alignment.Center,
                         contentScale = ContentScale.Crop,
+                        filterQuality = NuvioImageFilterQuality,
                     )
                 } else {
                     Box(
@@ -112,6 +119,7 @@ fun DetailHero(
                                 .height(if (isTablet) 72.dp else 80.dp),
                             alignment = Alignment.Center,
                             contentScale = ContentScale.Fit,
+                            filterQuality = NuvioImageFilterQuality,
                         )
                     } else {
                         Text(

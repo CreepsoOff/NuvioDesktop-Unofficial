@@ -73,6 +73,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import com.nuvio.app.core.i18n.localizedByteUnit
+import com.nuvio.app.core.ui.desktopContextMenuPointer
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
 import com.nuvio.app.core.ui.NuvioBottomSheetDivider
@@ -989,6 +990,7 @@ private fun StreamCard(
                 onClick = onClick,
                 onLongClick = onLongClick,
             )
+            .desktopContextMenuPointer(onLongClick)
             .padding(14.dp),
         verticalAlignment = Alignment.Top,
     ) {

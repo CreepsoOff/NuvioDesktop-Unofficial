@@ -32,7 +32,17 @@ enum class AppLanguage(
     ;
 
     companion object {
+        fun fromCodeOrNull(code: String?): AppLanguage? {
+            val normalized = code?.trim()?.takeIf { it.isNotBlank() } ?: return null
+            return entries.firstOrNull { it.code.equals(normalized, ignoreCase = true) }
+                ?: entries.firstOrNull { normalized.startsWith("${it.code}-", ignoreCase = true) }
+                ?: entries.firstOrNull { normalized.startsWith("${it.code}_", ignoreCase = true) }
+        }
+
         fun fromCode(code: String?): AppLanguage =
-            entries.firstOrNull { it.code.equals(code, ignoreCase = true) } ?: ENGLISH
+            fromCodeOrNull(code) ?: ENGLISH
+
+        fun fromSystemCodeOrEnglish(code: String?): AppLanguage =
+            fromCodeOrNull(code) ?: ENGLISH
     }
 }

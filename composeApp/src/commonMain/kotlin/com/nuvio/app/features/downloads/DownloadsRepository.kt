@@ -523,8 +523,10 @@ private fun buildFileName(
     }
 }
 
+private val invalidFileNameCharactersRegex = Regex("[^A-Za-z0-9._ -]")
+
 private fun String.sanitizeFileName(): String =
-    trim().replace(Regex("[^A-Za-z0-9._ -]"), "_")
+    trim().replace(invalidFileNameCharactersRegex, "_")
 
 private fun String.fileExtensionFromUrl(): String {
     val withoutQuery = substringBefore('?').substringBefore('#')

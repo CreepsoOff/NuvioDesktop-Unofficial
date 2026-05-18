@@ -900,10 +900,12 @@ private fun CollectionSource.tmdbType(): TmdbCollectionSourceType =
         ?.let { raw -> runCatching { TmdbCollectionSourceType.valueOf(raw.uppercase()) }.getOrNull() }
         ?: TmdbCollectionSourceType.DISCOVER
 
+private val traktListIdQueryRegex = Regex("""[?&]id=([^&#/]+)""")
+
 private fun String.isTraktListIdentifierInput(): Boolean {
     val trimmed = trim()
     if (trimmed.isBlank()) return false
     if (trimmed.toLongOrNull() != null) return true
     if (trimmed.contains("trakt.tv/", ignoreCase = true)) return true
-    return Regex("""[?&]id=([^&#/]+)""").containsMatchIn(trimmed)
+    return traktListIdQueryRegex.containsMatchIn(trimmed)
 }
