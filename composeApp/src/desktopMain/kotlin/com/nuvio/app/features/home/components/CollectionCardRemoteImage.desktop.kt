@@ -306,8 +306,13 @@ private fun decodeGifForCompose(
             val scale = minOf(1.0, coverScale)
             val canvasW = max(1, (baseW * scale).toInt())
             val canvasH = max(1, (baseH * scale).toInt())
-            val approxBytes = frameCount.toLong() * canvasW.toLong() * canvasH.toLong() * 4L
-            if (approxBytes > MaxDecodedGifBytes) return null
+            val outputFrameBytes = canvasW.toLong() * canvasH * 4L
+            val retainedApproxBytes = frameCount * outputFrameBytes
+            // logicalCanvas + previousLogicalCanvas are full logical size; the old path capped compositing
+            // dimensions so frame-only accounting matched peak decode memory. Include working buffers.
+            val logicalWorkingBytes = baseW.toLong() * baseH * 4L * 2L
+            if (retainedApproxBytes > MaxDecodedGifBytes) return null
+            if (logicalWorkingBytes + retainedApproxBytes > MaxDecodedGifBytes) return null
 
             val logicalCanvas = BufferedImage(baseW, baseH, BufferedImage.TYPE_INT_ARGB)
             val previousLogicalCanvas = BufferedImage(baseW, baseH, BufferedImage.TYPE_INT_ARGB)
@@ -404,7 +409,7 @@ private fun decodeGifForCompose(
             return DecodedDesktopGif(
                 frames = outFrames,
                 delaysMs = outDelays,
-                approxBytes = approxBytes,
+                approxBytes = retainedApproxBytes,
             )
         } finally {
             reader.dispose()
