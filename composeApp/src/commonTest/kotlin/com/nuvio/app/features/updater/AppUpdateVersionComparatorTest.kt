@@ -84,4 +84,40 @@ class AppUpdateVersionComparatorTest {
             ),
         )
     }
+
+    @Test
+    fun unparseableRemoteTagWithoutVersionMetadataDoesNotCountAsAvailable() {
+        assertFalse(
+            AppUpdateVersionComparator.isUpdateAvailable(
+                remoteVersionName = null,
+                remoteVersionCode = null,
+                remoteTag = "pre",
+                localVersionName = "0.1.15",
+                localVersionCode = 56,
+            ),
+        )
+    }
+
+    @Test
+    fun unparseableRemoteTagUsesVersionCodeWhenProvided() {
+        assertTrue(
+            AppUpdateVersionComparator.isUpdateAvailable(
+                remoteVersionName = null,
+                remoteVersionCode = 57,
+                remoteTag = "pre",
+                localVersionName = "0.1.15",
+                localVersionCode = 56,
+            ),
+        )
+
+        assertFalse(
+            AppUpdateVersionComparator.isUpdateAvailable(
+                remoteVersionName = null,
+                remoteVersionCode = 55,
+                remoteTag = "pre",
+                localVersionName = "0.1.15",
+                localVersionCode = 56,
+            ),
+        )
+    }
 }

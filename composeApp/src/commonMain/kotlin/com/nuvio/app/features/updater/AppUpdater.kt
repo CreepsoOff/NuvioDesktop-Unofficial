@@ -171,6 +171,10 @@ internal object AppUpdateVersionComparator {
             if (remoteVersionCode != null) return remoteVersionCode > localVersionCode
         }
 
+        if (remoteVersionCode != null) {
+            return remoteVersionCode > localVersionCode
+        }
+
         return isRemoteNewer(remoteTag, localVersionName)
     }
 
@@ -178,11 +182,7 @@ internal object AppUpdateVersionComparator {
         val remoteParts = parseVersionParts(remote)
         val localParts = parseVersionParts(local)
 
-        if (remoteParts == null || localParts == null) {
-            val remoteValue = normalize(remote)
-            val localValue = normalize(local)
-            return remoteValue.isNotBlank() && localValue.isNotBlank() && remoteValue != localValue
-        }
+        if (remoteParts == null || localParts == null) return false
 
         return compareVersionParts(remoteParts, localParts) > 0
     }
