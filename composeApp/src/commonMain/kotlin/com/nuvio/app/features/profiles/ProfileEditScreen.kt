@@ -151,9 +151,6 @@ fun ProfileEditScreen(
                         value = avatarUrl,
                         onValueChange = { value ->
                             avatarUrl = value
-                            if (value.isNotBlank()) {
-                                selectedAvatarId = null
-                            }
                         },
                         placeholder = stringResource(Res.string.profile_custom_avatar_url_placeholder),
                     )

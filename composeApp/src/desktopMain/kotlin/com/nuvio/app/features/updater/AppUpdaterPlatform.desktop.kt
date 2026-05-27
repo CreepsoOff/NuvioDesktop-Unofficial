@@ -7,6 +7,8 @@ import java.io.FileOutputStream
 import java.net.URI
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -61,51 +63,59 @@ actual object AppUpdaterPlatform {
         assetUrl: String,
         assetName: String,
         onProgress: (downloadedBytes: Long, totalBytes: Long?) -> Unit,
-    ): Result<String> = runCatching {
-        val updatesDir = File(System.getProperty("java.io.tmpdir"), "nuvio-updates")
-        if (!updatesDir.exists()) {
-            check(updatesDir.mkdirs()) { "Unable to create update directory." }
-        }
-
-        val safeFileName = assetName
-            .substringAfterLast('/')
-            .replace(Regex("[^a-zA-Z0-9._-]"), "_")
-            .ifBlank { "Nuvio-update.bin" }
-        val destination = File(updatesDir, safeFileName)
-        if (destination.exists()) {
-            destination.delete()
-        }
-
-        val request = Request.Builder()
-            .url(assetUrl)
-            .header("User-Agent", "Nuvio")
-            .build()
-
-        var totalSize: Long? = null
-        httpClient.newCall(request).execute().use { response ->
-            check(response.isSuccessful) {
-                "Update download failed: HTTP ${response.code}"
+    ): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val updatesDir = File(System.getProperty("java.io.tmpdir"), "nuvio-updates")
+            if (!updatesDir.exists()) {
+                check(updatesDir.mkdirs()) { "Unable to create update directory." }
             }
 
-            val body = checkNotNull(response.body) { "Update download body is empty." }
-            totalSize = body.contentLength().takeIf { it > 0L }
-            body.byteStream().use { input ->
-                FileOutputStream(destination).use { output ->
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    var downloaded = 0L
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read <= 0) break
-                        output.write(buffer, 0, read)
-                        downloaded += read
-                        onProgress(downloaded, totalSize)
+            val safeFileName = assetName
+                .substringAfterLast('/')
+                .replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                .ifBlank { "Nuvio-update.bin" }
+            val destination = File(updatesDir, safeFileName)
+            if (destination.exists()) {
+                destination.delete()
+            }
+
+            val request = Request.Builder()
+                .url(assetUrl)
+                .header("User-Agent", "Nuvio")
+                .build()
+
+            var totalSize: Long? = null
+            httpClient.newCall(request).execute().use { response ->
+                check(response.isSuccessful) {
+                    "Update download failed: HTTP ${response.code}"
+                }
+
+                val body = checkNotNull(response.body) { "Update download body is empty." }
+                totalSize = body.contentLength().takeIf { it > 0L }
+                body.byteStream().use { input ->
+                    FileOutputStream(destination).use { output ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        var downloaded = 0L
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read <= 0) break
+                            output.write(buffer, 0, read)
+                            downloaded += read
+                            onProgress(downloaded, totalSize)
+                        }
+                        output.flush()
                     }
-                    output.flush()
                 }
             }
+            val downloadedLength = destination.length()
+            totalSize?.let { expectedLength ->
+                check(downloadedLength == expectedLength) {
+                    "Update download incomplete: expected $expectedLength bytes but saved $downloadedLength bytes."
+                }
+            }
+            onProgress(downloadedLength, totalSize ?: downloadedLength)
+            destination.absolutePath
         }
-        onProgress(destination.length(), totalSize ?: destination.length())
-        destination.absolutePath
     }
 
     actual fun canRequestPackageInstalls(): Boolean = true
