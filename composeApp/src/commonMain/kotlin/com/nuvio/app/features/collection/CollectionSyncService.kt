@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -64,6 +65,16 @@ object CollectionSyncService {
             }
             val remoteJson = remoteCollectionsJson.toString()
             val localJson = CollectionRepository.exportToJson()
+
+            if (isRemoteCollectionsEmpty(remoteCollectionsJson)) {
+                val currentCollections = CollectionRepository.collections.value
+                if (currentCollections.isNotEmpty()) {
+                    log.i {
+                        "pullFromServer — remote empty, preserving local ${currentCollections.size} collections"
+                    }
+                    return
+                }
+            }
 
             if (remoteJson == localJson) {
                 log.d { "pullFromServer — remote matches local, no update needed" }
@@ -132,3 +143,13 @@ object CollectionSyncService {
         }
     }
 }
+
+internal fun isRemoteCollectionsEmpty(remoteCollectionsJson: JsonElement): Boolean =
+    when (remoteCollectionsJson) {
+        is JsonArray -> remoteCollectionsJson.isEmpty()
+        is JsonNull -> true
+        else -> {
+            val serialized = remoteCollectionsJson.toString()
+            serialized == "[]" || serialized == "null"
+        }
+    }
