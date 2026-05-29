@@ -31,6 +31,7 @@ import com.nuvio.app.desktop.DesktopRuntimeLog
 import com.nuvio.app.desktop.DesktopSingleInstanceManager
 import com.nuvio.app.desktop.DesktopUriHandler
 import com.nuvio.app.desktop.DesktopWindowStateStore
+import com.nuvio.app.desktop.WindowsChromePolish
 import com.nuvio.app.desktop.WindowsNativeBootstrap
 import com.nuvio.app.desktop.WindowsUrlProtocolRegistrar
 import com.nuvio.app.features.notifications.WindowsToastHelper
@@ -55,6 +56,14 @@ private fun configureMacOsNativeAppearance() {
     if (!osName.contains("mac")) return
     System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua")
 }
+
+/**
+ * Dark native-caption styling is Windows-only (DWM immersive dark mode); macOS/Linux keep their
+ * native title bars unchanged. The window stays decorated on every platform, so native fullscreen,
+ * Aero Snap, resize and maximize are untouched.
+ */
+private val isWindowsOs: Boolean
+    get() = System.getProperty("os.name")?.contains("Windows", ignoreCase = true) == true
 
 private fun computeStartupWindowSize(): DpSize {
     val displayBounds = GraphicsEnvironment.getLocalGraphicsEnvironment()
@@ -259,6 +268,11 @@ fun main(args: Array<String>) {
                 window.contentPane.background = DesktopWindowBackground
                 window.rootPane.background = DesktopWindowBackground
                 devStreamMode?.startDiagnostics { desktopMainWindow }
+                // Recolor the native caption to dark (keeps the window decorated so native
+                // fullscreen / Aero Snap / resize all keep working).
+                if (isWindowsOs) {
+                    WindowsChromePolish.apply(window)
+                }
                 onDispose { desktopMainWindow = null }
             }
 
