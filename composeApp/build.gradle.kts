@@ -90,6 +90,7 @@ abstract class BuildWindowsPlayerBridgeTask : DefaultTask() {
             ${'$'}obj = Join-Path ${'$'}out 'player_bridge.obj'
             ${'$'}pdb = Join-Path ${'$'}out 'player_bridge.pdb'
             ${'$'}vcvars = ${psQuote(vcvarsPath.orNull.orEmpty())}
+            ${'$'}javaHome = ${psQuote(System.getProperty("java.home"))}
             if ([string]::IsNullOrWhiteSpace(${'$'}vcvars)) {
               ${'$'}vswhere = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
               if (Test-Path -LiteralPath ${'$'}vswhere) {
@@ -111,7 +112,11 @@ abstract class BuildWindowsPlayerBridgeTask : DefaultTask() {
             ${'$'}vcvars = (${'$'}vcvars -replace '[\r\n]', '').Trim()
             ${'$'}dq = [char]34
             New-Item -ItemType Directory -Force -Path ${'$'}out | Out-Null
-            ${'$'}compile = 'cl /nologo /EHsc /std:c++17 /LD /DUNICODE /D_UNICODE /DNOMINMAX /DWIN32_LEAN_AND_MEAN ' + ${'$'}dq + ${'$'}source + ${'$'}dq + ' /Fo' + ${'$'}dq + ${'$'}obj + ${'$'}dq + ' /Fd' + ${'$'}dq + ${'$'}pdb + ${'$'}dq + ' /Fe' + ${'$'}dq + ${'$'}dll + ${'$'}dq + ' /link /NOLOGO /INCREMENTAL:NO /IMPLIB:' + ${'$'}dq + ${'$'}lib + ${'$'}dq + ' User32.lib Gdi32.lib'
+            ${'$'}jniIncludes = ''
+            if (Test-Path -LiteralPath (Join-Path ${'$'}javaHome 'include\jni.h')) {
+              ${'$'}jniIncludes = ' /I' + ${'$'}dq + (Join-Path ${'$'}javaHome 'include') + ${'$'}dq + ' /I' + ${'$'}dq + (Join-Path ${'$'}javaHome 'include\win32') + ${'$'}dq
+            }
+            ${'$'}compile = 'cl /nologo /EHsc /std:c++17 /LD /DUNICODE /D_UNICODE /DNOMINMAX /DWIN32_LEAN_AND_MEAN' + ${'$'}jniIncludes + ' ' + ${'$'}dq + ${'$'}source + ${'$'}dq + ' /Fo' + ${'$'}dq + ${'$'}obj + ${'$'}dq + ' /Fd' + ${'$'}dq + ${'$'}pdb + ${'$'}dq + ' /Fe' + ${'$'}dq + ${'$'}dll + ${'$'}dq + ' /link /NOLOGO /INCREMENTAL:NO /IMPLIB:' + ${'$'}dq + ${'$'}lib + ${'$'}dq + ' User32.lib Gdi32.lib'
             ${'$'}bat = Join-Path ${'$'}out 'build-player-bridge.bat'
             ${'$'}lines = @(
               '@echo off',

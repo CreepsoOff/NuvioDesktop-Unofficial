@@ -3,6 +3,7 @@
 #endif
 
 #include <windows.h>
+#include <jni.h>
 
 #include <algorithm>
 #include <atomic>
@@ -35,6 +36,8 @@ namespace {
 HMODULE gModule = nullptr;
 constexpr const wchar_t *kWindowClass = L"NuvioPlayerBridgeVideoWindow";
 
+std::string trim(std::string value);
+
 std::wstring toWide(const std::string &value) {
     if (value.empty()) return std::wstring();
     int size = MultiByteToWideChar(CP_UTF8, 0, value.data(), (int)value.size(), nullptr, 0);
@@ -51,6 +54,44 @@ std::string toUtf8(const std::wstring &value) {
     std::string result((size_t)size, '\0');
     WideCharToMultiByte(CP_UTF8, 0, value.data(), (int)value.size(), result.data(), size, nullptr, nullptr);
     return result;
+}
+
+std::string jstringToUtf8(JNIEnv *env, jstring value) {
+    if (!env || !value) return std::string();
+    const char *chars = env->GetStringUTFChars(value, nullptr);
+    if (!chars) return std::string();
+    std::string result(chars);
+    env->ReleaseStringUTFChars(value, chars);
+    return result;
+}
+
+jstring newJavaString(JNIEnv *env, const std::string &value) {
+    return env->NewStringUTF(value.c_str());
+}
+
+std::string headerLinesToJson(JNIEnv *env, jobjectArray headerLines) {
+    if (!env || !headerLines) return std::string();
+    jsize count = env->GetArrayLength(headerLines);
+    if (count <= 0) return std::string();
+    std::string json = "{";
+    for (jsize i = 0; i < count; i++) {
+        jstring item = (jstring)env->GetObjectArrayElement(headerLines, i);
+        std::string line = jstringToUtf8(env, item);
+        env->DeleteLocalRef(item);
+        size_t separator = line.find(':');
+        if (separator == std::string::npos) continue;
+        std::string key = trim(line.substr(0, separator));
+        std::string value = trim(line.substr(separator + 1));
+        if (key.empty() || value.empty()) continue;
+        if (json.size() > 1) json += ",";
+        json += "\"";
+        json += key;
+        json += "\":\"";
+        json += value;
+        json += "\"";
+    }
+    json += "}";
+    return json.size() > 2 ? json : std::string();
 }
 
 std::wstring moduleDirectory() {
@@ -679,6 +720,180 @@ NUVIO_NOOP_VOID(nuvio_player_clear_episode_addon_groups, (void *))
 NUVIO_NOOP_VOID(nuvio_player_add_episode_addon_group, (void *, const char *, const char *, const char *, int, int))
 NUVIO_NOOP_VOID(nuvio_player_set_episode_selected_filter, (void *, const char *))
 NUVIO_NOOP_VOID(nuvio_player_show_episode_streams, (void *, int, int, const char *))
+
+extern "C" JNIEXPORT jlong JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
+    JNIEnv *env,
+    jobject,
+    jlong hostViewPtr,
+    jstring sourceUrl,
+    jobjectArray headerLines,
+    jboolean playWhenReady,
+    jlong initialPositionMs,
+    jstring,
+    jobject
+) {
+    NativePlayer *player = new NativePlayer();
+    player->playWhenReady = playWhenReady == JNI_TRUE;
+    player->parent = (HWND)(intptr_t)hostViewPtr;
+    player->pendingUrl = jstringToUtf8(env, sourceUrl);
+    player->pendingHeadersJson = headerLinesToJson(env, headerLines);
+    try {
+        player->ensureWindow();
+        player->ensureMpv();
+        player->loadPending();
+        if (initialPositionMs > 0) {
+            double seconds = (double)initialPositionMs / 1000.0;
+            mpvApi().setProperty(player->mpv, "time-pos", MPV_FORMAT_DOUBLE, &seconds);
+        }
+    } catch (const std::exception &error) {
+        player->setError(error.what());
+    }
+    return (jlong)(intptr_t)player;
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_dispose(JNIEnv *, jobject, jlong handle) {
+    delete asPlayer((void *)(intptr_t)handle);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_updateControls(JNIEnv *, jobject, jlong, jstring) {}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setPaused(JNIEnv *, jobject, jlong handle, jboolean paused) {
+    if (paused == JNI_TRUE) {
+        nuvio_player_pause((void *)(intptr_t)handle);
+    } else {
+        nuvio_player_play((void *)(intptr_t)handle);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_seekTo(JNIEnv *, jobject, jlong handle, jlong positionMs) {
+    nuvio_player_seek_to((void *)(intptr_t)handle, positionMs);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_seekBy(JNIEnv *, jobject, jlong handle, jlong offsetMs) {
+    nuvio_player_seek_by((void *)(intptr_t)handle, offsetMs);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setSpeed(JNIEnv *, jobject, jlong handle, jfloat speed) {
+    nuvio_player_set_speed((void *)(intptr_t)handle, speed);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setResizeMode(JNIEnv *, jobject, jlong handle, jint mode) {
+    nuvio_player_set_resize_mode((void *)(intptr_t)handle, mode);
+}
+
+extern "C" JNIEXPORT jlong JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_durationMs(JNIEnv *, jobject, jlong handle) {
+    return nuvio_player_get_duration_ms((void *)(intptr_t)handle);
+}
+
+extern "C" JNIEXPORT jlong JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_positionMs(JNIEnv *, jobject, jlong handle) {
+    return nuvio_player_get_position_ms((void *)(intptr_t)handle);
+}
+
+extern "C" JNIEXPORT jlong JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_bufferedPositionMs(JNIEnv *, jobject, jlong handle) {
+    return nuvio_player_get_buffered_ms((void *)(intptr_t)handle);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_isLoading(JNIEnv *, jobject, jlong handle) {
+    return nuvio_player_is_loading((void *)(intptr_t)handle) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_isEnded(JNIEnv *, jobject, jlong handle) {
+    return nuvio_player_is_ended((void *)(intptr_t)handle) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_isPaused(JNIEnv *, jobject, jlong handle) {
+    NativePlayer *player = asPlayer((void *)(intptr_t)handle);
+    int paused = getProperty<int>(player, "pause", MPV_FORMAT_FLAG, 1);
+    return paused ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jfloat JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_speed(JNIEnv *, jobject, jlong handle) {
+    return nuvio_player_get_speed((void *)(intptr_t)handle);
+}
+
+std::string tracksJsonFor(NativePlayer *player, const char *type) {
+    std::string json = "[";
+    int count = countTracksByType(player, type);
+    for (int i = 0; i < count; i++) {
+        if (i > 0) json += ",";
+        int id = trackIdAt(player, type, i);
+        const char *label = trackTextAt(player, type, i, "title");
+        const char *lang = trackTextAt(player, type, i, "lang");
+        json += "{\"index\":";
+        json += std::to_string(i);
+        json += ",\"id\":\"";
+        json += std::to_string(id);
+        json += "\",\"label\":\"";
+        json += label ? label : "";
+        json += "\",\"language\":\"";
+        json += lang ? lang : "";
+        json += "\",\"selected\":";
+        json += isTrackSelected(player, type, i) ? "true" : "false";
+        json += ",\"forced\":false}";
+    }
+    json += "]";
+    return json;
+}
+
+extern "C" JNIEXPORT jstring JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_audioTracksJson(JNIEnv *env, jobject, jlong handle) {
+    return newJavaString(env, tracksJsonFor(asPlayer((void *)(intptr_t)handle), "audio"));
+}
+
+extern "C" JNIEXPORT jstring JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_subtitleTracksJson(JNIEnv *env, jobject, jlong handle) {
+    return newJavaString(env, tracksJsonFor(asPlayer((void *)(intptr_t)handle), "sub"));
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_selectAudioTrack(JNIEnv *, jobject, jlong handle, jint trackId) {
+    nuvio_player_select_audio_track((void *)(intptr_t)handle, trackId);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_selectSubtitleTrack(JNIEnv *, jobject, jlong handle, jint trackId) {
+    nuvio_player_select_subtitle_track((void *)(intptr_t)handle, trackId);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_addSubtitleUrl(JNIEnv *env, jobject, jlong handle, jstring url) {
+    std::string value = jstringToUtf8(env, url);
+    nuvio_player_set_subtitle_url((void *)(intptr_t)handle, value.c_str());
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_clearExternalSubtitles(JNIEnv *, jobject, jlong handle) {
+    nuvio_player_clear_external_subtitle((void *)(intptr_t)handle);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_clearExternalSubtitlesAndSelect(JNIEnv *, jobject, jlong handle, jint trackId) {
+    nuvio_player_clear_external_subtitle_and_select((void *)(intptr_t)handle, trackId);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_applyWindowChrome(JNIEnv *, jobject, jlong, jboolean, jint, jint, jint) {}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setSubtitleDelayMs(JNIEnv *, jobject, jlong handle, jint delayMs) {
+    NativePlayer *player = asPlayer((void *)(intptr_t)handle);
+    if (!player || !player->mpv) return;
+    double seconds = (double)delayMs / 1000.0;
+    mpvApi().setProperty(player->mpv, "sub-delay", MPV_FORMAT_DOUBLE, &seconds);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_applySubtitleStyle(
+    JNIEnv *env,
+    jobject,
+    jlong handle,
+    jstring textColor,
+    jstring,
+    jstring,
+    jfloat outlineSize,
+    jboolean,
+    jfloat fontSize,
+    jint subPos
+) {
+    std::string color = jstringToUtf8(env, textColor);
+    nuvio_player_apply_subtitle_style((void *)(intptr_t)handle, color.c_str(), outlineSize, fontSize, subPos);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_warmupWebView2(JNIEnv *, jobject, jstring) {
+    return JNI_TRUE;
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_shutdownWebView2Warmup(JNIEnv *, jobject) {}
 
 #undef NUVIO_NOOP_STR
 #undef NUVIO_NOOP_INT
