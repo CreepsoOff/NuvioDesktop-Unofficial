@@ -1,5 +1,6 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.file.DirectoryProperty
@@ -27,6 +28,106 @@ import javax.inject.Inject
 
 abstract class WindowsPackageAppImageBuildService : BuildService<BuildServiceParameters.None>
 
+abstract class BuildWindowsPlayerBridgeTask : DefaultTask() {
+    @get:InputFile
+    abstract val sourceFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @get:Input
+    abstract val requireBridge: Property<Boolean>
+
+    @get:Optional
+    @get:Input
+    abstract val vcvarsPath: Property<String>
+
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @TaskAction
+    fun build() {
+        val source = sourceFile.get().asFile
+        val output = outputDir.get().asFile.apply { mkdirs() }
+        if (!source.isFile) {
+            handleBuildFailure("Windows player bridge source is missing: ${source.absolutePath}", null)
+            return
+        }
+
+        val command = windowsBridgeBuildCommand(source, output)
+        runCatching {
+            execOperations.exec {
+                commandLine(
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    command,
+                )
+            }.assertNormalExitValue()
+        }.onFailure { error ->
+            handleBuildFailure("Windows player bridge build failed: ${error.message}", error)
+        }
+    }
+
+    private fun handleBuildFailure(message: String, error: Throwable?) {
+        if (requireBridge.get()) {
+            throw GradleException(message, error)
+        }
+        logger.warn("$message MPV fallback packaging will continue.")
+    }
+
+    private fun windowsBridgeBuildCommand(source: File, output: File): String {
+        fun psQuote(value: String): String = "'" + value.replace("'", "''") + "'"
+
+        return """
+            ${'$'}ErrorActionPreference = 'Stop'
+            ${'$'}source = ${psQuote(source.absolutePath)}
+            ${'$'}out = ${psQuote(output.absolutePath)}
+            ${'$'}dll = Join-Path ${'$'}out 'player_bridge.dll'
+            ${'$'}lib = Join-Path ${'$'}out 'player_bridge.lib'
+            ${'$'}obj = Join-Path ${'$'}out 'player_bridge.obj'
+            ${'$'}pdb = Join-Path ${'$'}out 'player_bridge.pdb'
+            ${'$'}vcvars = ${psQuote(vcvarsPath.orNull.orEmpty())}
+            if ([string]::IsNullOrWhiteSpace(${'$'}vcvars)) {
+              ${'$'}vswhere = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
+              if (Test-Path -LiteralPath ${'$'}vswhere) {
+                ${'$'}vcvars = & ${'$'}vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'VC\Auxiliary\Build\vcvars64.bat' | Select-Object -First 1
+              }
+            }
+            if ([string]::IsNullOrWhiteSpace(${'$'}vcvars)) {
+              ${'$'}vcvars = @(
+                'C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat',
+                'C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat',
+                'C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat',
+                'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat'
+              ) | Where-Object { Test-Path -LiteralPath ${'$'}_ } | Select-Object -First 1
+            }
+            if ([string]::IsNullOrWhiteSpace(${'$'}vcvars) -or -not (Test-Path -LiteralPath ${'$'}vcvars)) {
+              throw 'Visual Studio C++ toolchain was not found. Install MSVC or pass -Pnuvio.windows.vcvars.path=C:\path\to\vcvars64.bat.'
+            }
+            ${'$'}vcvars = ((${'$'}vcvars | Select-Object -First 1) -as [string])
+            ${'$'}vcvars = (${'$'}vcvars -replace '[\r\n]', '').Trim()
+            ${'$'}dq = [char]34
+            New-Item -ItemType Directory -Force -Path ${'$'}out | Out-Null
+            ${'$'}compile = 'cl /nologo /EHsc /std:c++17 /LD /DUNICODE /D_UNICODE /DNOMINMAX /DWIN32_LEAN_AND_MEAN ' + ${'$'}dq + ${'$'}source + ${'$'}dq + ' /Fo' + ${'$'}dq + ${'$'}obj + ${'$'}dq + ' /Fd' + ${'$'}dq + ${'$'}pdb + ${'$'}dq + ' /Fe' + ${'$'}dq + ${'$'}dll + ${'$'}dq + ' /link /NOLOGO /INCREMENTAL:NO /IMPLIB:' + ${'$'}dq + ${'$'}lib + ${'$'}dq + ' User32.lib Gdi32.lib'
+            ${'$'}bat = Join-Path ${'$'}out 'build-player-bridge.bat'
+            ${'$'}lines = @(
+              '@echo off',
+              ('set {0}VCVARS={1}{0}' -f ${'$'}dq, ${'$'}vcvars),
+              ('call {0}%VCVARS%{0} >nul' -f ${'$'}dq),
+              'if errorlevel 1 exit /b %errorlevel%',
+              ${'$'}compile,
+              'exit /b %ERRORLEVEL%'
+            )
+            Set-Content -LiteralPath ${'$'}bat -Value ${'$'}lines -Encoding ASCII
+            & cmd.exe /d /c ${'$'}bat
+            if (${'$'}LASTEXITCODE -ne 0) { exit ${'$'}LASTEXITCODE }
+        """.trimIndent()
+    }
+}
+
 abstract class PackageWindowsNativeRuntimeTask : DefaultTask() {
     @get:Internal
     abstract val mediampNativeBuildDir: DirectoryProperty
@@ -50,8 +151,21 @@ abstract class PackageWindowsNativeRuntimeTask : DefaultTask() {
     @get:Input
     abstract val stremioLibmpvDir: Property<String>
 
+    @get:Optional
+    @get:Input
+    abstract val playerBridgePath: Property<String>
+
+    @get:Input
+    abstract val requirePlayerBridge: Property<Boolean>
+
     @get:Internal
     abstract val lockFile: RegularFileProperty
+
+    @get:Internal
+    abstract val rootProjectDir: DirectoryProperty
+
+    @get:Internal
+    abstract val composeProjectDir: DirectoryProperty
 
     @get:Inject
     abstract val fileSystemOperations: FileSystemOperations
@@ -66,10 +180,12 @@ abstract class PackageWindowsNativeRuntimeTask : DefaultTask() {
         RandomAccessFile(lock, "rw").channel.use { channel ->
             channel.lock().use {
                 copyNativeDlls()
+                copyPlayerBridge()
                 overrideLibmpvFromStremioIfConfigured()
                 patchLauncherConfig()
                 copyLauncherFallbackDlls()
                 verifyRequiredDlls()
+                writeRuntimeIndex()
             }
         }
     }
@@ -93,6 +209,52 @@ abstract class PackageWindowsNativeRuntimeTask : DefaultTask() {
             }
             into(nativeDir)
         }
+    }
+
+    private fun copyPlayerBridge() {
+        val bridgeSource = resolvePlayerBridgeSource()
+        if (bridgeSource == null) {
+            val message = "Windows native player bridge was not found. Set NUVIO_PLAYER_BRIDGE_PATH or -Pnuvio.player.bridge.path."
+            if (requirePlayerBridge.get()) {
+                check(false) { message }
+            }
+            logger.warn("packageWindowsNativeRuntime: $message MPV fallback packaging will continue.")
+            return
+        }
+
+        val nativeDirectory = nativeDir.get().asFile.apply { mkdirs() }
+        val officialBridge = nativeDirectory.resolve("player_bridge.dll")
+        bridgeSource.copyTo(officialBridge, overwrite = true)
+        if (!bridgeSource.name.equals("player_bridge.dll", ignoreCase = true)) {
+            bridgeSource.copyTo(nativeDirectory.resolve(bridgeSource.name), overwrite = true)
+        }
+        logger.lifecycle(
+            "packageWindowsNativeRuntime: packaged player_bridge.dll " +
+                "source=${bridgeSource.absolutePath} size=${officialBridge.length()} sha256=${officialBridge.sha256().take(12)}...",
+        )
+    }
+
+    private fun resolvePlayerBridgeSource(): File? {
+        val explicit = playerBridgePath.orNull
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::File)
+        val explicitCandidates = when {
+            explicit == null -> emptyList()
+            explicit.isDirectory -> listOf(explicit.resolve("player_bridge.dll"))
+            else -> listOf(explicit)
+        }
+
+        val root = rootProjectDir.get().asFile
+        val compose = composeProjectDir.get().asFile
+        val discoveredCandidates = listOf(
+            compose.resolve("build/native/windows/player_bridge.dll"),
+            root.resolve("build/native/windows/player_bridge.dll"),
+            root.resolve("WindowsBridge/build/Release/player_bridge.dll"),
+            root.resolve("WindowsBridge/build/Debug/player_bridge.dll"),
+        )
+
+        return (explicitCandidates + discoveredCandidates)
+            .firstOrNull { it.isFile && it.extension.equals("dll", ignoreCase = true) }
     }
 
     private fun overrideLibmpvFromStremioIfConfigured() {
@@ -240,6 +402,16 @@ abstract class PackageWindowsNativeRuntimeTask : DefaultTask() {
         check(missingFromLauncher.isEmpty()) {
             "Windows launcher native fallback is incomplete in ${launcherDirectory.absolutePath}: missing ${missingFromLauncher.joinToString()}"
         }
+    }
+
+    private fun writeRuntimeIndex() {
+        val nativeDirectory = nativeDir.get().asFile
+        val runtimeFiles = nativeDirectory
+            .listFiles { file -> file.isFile && file.name != "runtime-files.txt" }
+            .orEmpty()
+            .map { it.name }
+            .sorted()
+        nativeDirectory.resolve("runtime-files.txt").writeText(runtimeFiles.joinToString(separator = "\n", postfix = "\n"))
     }
 
     private fun File.sha256(): String {
@@ -808,6 +980,25 @@ compose.desktop {
 
 val windowsNativeRuntimeLockFile = layout.buildDirectory.file("compose/tmp/windows-native-runtime.lock")
 
+val buildWindowsPlayerBridge = tasks.register<BuildWindowsPlayerBridgeTask>("buildWindowsPlayerBridge") {
+    group = "compose desktop"
+    description = "Builds the Windows native player bridge as player_bridge.dll."
+    onlyIf { System.getProperty("os.name").contains("windows", ignoreCase = true) }
+    sourceFile.set(layout.projectDirectory.file("src/desktopMain/native/windows/player_bridge.cpp"))
+    outputDir.set(layout.buildDirectory.dir("native/windows"))
+    requireBridge.set(
+        providers.gradleProperty("nuvio.windows.player.bridge.required")
+            .orElse(providers.environmentVariable("NUVIO_WINDOWS_PLAYER_BRIDGE_REQUIRED"))
+            .map(String::toBoolean)
+            .orElse(false),
+    )
+    vcvarsPath.set(
+        providers.gradleProperty("nuvio.windows.vcvars.path")
+            .orElse(providers.environmentVariable("NUVIO_WINDOWS_VCVARS_PATH"))
+            .orElse(""),
+    )
+}
+
 val packageWindowsNativeRuntime = tasks.register<PackageWindowsNativeRuntimeTask>("packageWindowsNativeRuntime") {
     val mediampRootDir = rootProject.file("mediamp")
     val mediampNativeBuildDir = mediampRootDir.resolve("mediamp-mpv/build-ci")
@@ -826,13 +1017,30 @@ val packageWindowsNativeRuntime = tasks.register<PackageWindowsNativeRuntimeTask
     this.appDir.set(appDir)
     this.nativeDir.set(nativeDir)
     this.launcherDir.set(launcherDir)
+    this.rootProjectDir.set(rootProject.layout.projectDirectory)
+    this.composeProjectDir.set(layout.projectDirectory)
     val defaultStremioDir = rootProject.file("stremio-community-v5/deps/libmpv/x86_64")
     this.stremioLibmpvDir.set(
         providers.gradleProperty("nuvio.stremio.libmpv.dir")
             .orElse(providers.environmentVariable("NUVIO_STREMIO_LIBMPV_DIR"))
             .orElse(defaultStremioDir.absolutePath),
     )
+    this.playerBridgePath.set(
+        providers.gradleProperty("nuvio.player.bridge.path")
+            .orElse(providers.environmentVariable("NUVIO_PLAYER_BRIDGE_PATH"))
+            .orElse(""),
+    )
+    this.requirePlayerBridge.set(
+        providers.gradleProperty("nuvio.windows.player.bridge.required")
+            .orElse(providers.environmentVariable("NUVIO_WINDOWS_PLAYER_BRIDGE_REQUIRED"))
+            .map(String::toBoolean)
+            .orElse(false),
+    )
     this.lockFile.set(windowsNativeRuntimeLockFile)
+}
+
+packageWindowsNativeRuntime.configure {
+    dependsOn(buildWindowsPlayerBridge)
 }
 
 val windowsPackageAppImageService = gradle.sharedServices.registerIfAbsent(

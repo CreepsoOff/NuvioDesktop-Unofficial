@@ -168,45 +168,142 @@ internal interface DesktopMPVBridgeLib : Library {
 
 internal interface WindowsDesktopMPVBridgeLib : Library {
     companion object {
-        private val loadedInstance: WindowsDesktopMPVBridgeLib? by lazy {
-            val userDir = System.getProperty("user.dir") ?: ""
-            val candidates = listOf(
-                File(userDir, "WindowsBridge/build/Release"),
-                File(userDir, "WindowsBridge/build/Debug"),
-                File(userDir, "../WindowsBridge/build/Release"),
-                File(userDir, "../WindowsBridge/build/Debug"),
-                File(userDir, "composeApp/build/bin/desktop/debugExecutable"),
-                File(userDir, "composeApp/build/bin/desktop/releaseExecutable"),
-            )
-            val libraryFile = candidates
-                .asSequence()
-                .filter { it.exists() && it.isDirectory }
-                .map { File(it, "NuvioWindowsBridge.dll") }
-                .firstOrNull { it.exists() && it.isFile }
+        private const val OFFICIAL_LIBRARY_FILE = "player_bridge.dll"
+        private const val OFFICIAL_LIBRARY_NAME = "player_bridge"
+        private const val BRIDGE_PATH_PROPERTY = "nuvio.player.bridge.path"
+        private const val BRIDGE_PATH_ENV = "NUVIO_PLAYER_BRIDGE_PATH"
 
-            if (libraryFile != null) {
-                System.setProperty(
-                    "jna.library.path",
-                    listOfNotNull(System.getProperty("jna.library.path"), libraryFile.parentFile?.absolutePath).joinToString(";"),
-                )
-            }
-
-            runCatching {
-                if (libraryFile != null) {
-                    Native.load(libraryFile.absolutePath, WindowsDesktopMPVBridgeLib::class.java)
-                } else {
-                    Native.load("NuvioWindowsBridge", WindowsDesktopMPVBridgeLib::class.java)
-                }
-            }.getOrNull()
-        }
+        private val loadResult: BridgeLoadResult by lazy { resolveAndLoad() }
+        private val loadedInstance: WindowsDesktopMPVBridgeLib?
+            get() = loadResult.instance
 
         val isAvailable: Boolean
             get() = loadedInstance != null
 
+        val loadDiagnostics: String
+            get() = loadResult.diagnostics
+
         fun loadOrNull(): WindowsDesktopMPVBridgeLib? = loadedInstance
 
         val INSTANCE: WindowsDesktopMPVBridgeLib
-            get() = loadedInstance ?: error("NuvioWindowsBridge.dll is not available")
+            get() = loadedInstance ?: error(loadDiagnostics)
+
+        private fun resolveAndLoad(): BridgeLoadResult {
+            val attempted = mutableListOf<String>()
+            candidateFiles().forEach { candidate ->
+                attempted += "${candidate.source}:${candidate.file.absolutePath}"
+                if (!candidate.file.isFile) return@forEach
+                appendJnaLibraryPath(candidate.file.parentFile)
+                val instance = runCatching {
+                    Native.load(candidate.file.absolutePath, WindowsDesktopMPVBridgeLib::class.java)
+                }.getOrNull()
+                if (instance != null) {
+                    return BridgeLoadResult(
+                        instance = instance,
+                        diagnostics = "loaded source=${candidate.source} file=${candidate.file.absolutePath}",
+                    )
+                }
+            }
+
+            listOf(OFFICIAL_LIBRARY_NAME).forEach { libraryName ->
+                attempted += "jna:$libraryName"
+                val instance = runCatching {
+                    Native.load(libraryName, WindowsDesktopMPVBridgeLib::class.java)
+                }.getOrNull()
+                if (instance != null) {
+                    return BridgeLoadResult(
+                        instance = instance,
+                        diagnostics = "loaded source=jna name=$libraryName",
+                    )
+                }
+            }
+
+            return BridgeLoadResult(
+                instance = null,
+                diagnostics = "Windows native bridge not found. Checked ${attempted.joinToString()}",
+            )
+        }
+
+        private fun candidateFiles(): List<BridgeCandidate> {
+            val userDir = File(System.getProperty("user.dir") ?: "")
+            val candidates = mutableListOf<BridgeCandidate>()
+
+            explicitBridgePath()?.let { explicit ->
+                if (explicit.isDirectory) {
+                    candidates += BridgeCandidate("override-dir", explicit.resolve(OFFICIAL_LIBRARY_FILE))
+                } else {
+                    candidates += BridgeCandidate("override-file", explicit)
+                }
+            }
+
+            val packagedDirs = listOf(
+                userDir.resolve("app/native"),
+                userDir.resolve("native/windows"),
+                userDir,
+                userDir.resolve("../app/native"),
+                userDir.resolve("../native/windows"),
+            )
+            packagedDirs.forEach { dir ->
+                candidates += BridgeCandidate("packaged", dir.resolve(OFFICIAL_LIBRARY_FILE))
+            }
+
+            val buildDirs = listOf(
+                userDir.resolve("composeApp/build/native/windows"),
+                userDir.resolve("build/native/windows"),
+                userDir.resolve("WindowsBridge/build/Release"),
+                userDir.resolve("WindowsBridge/build/Debug"),
+                userDir.resolve("../WindowsBridge/build/Release"),
+                userDir.resolve("../WindowsBridge/build/Debug"),
+                userDir.resolve("composeApp/build/bin/desktop/debugExecutable"),
+                userDir.resolve("composeApp/build/bin/desktop/releaseExecutable"),
+            )
+            buildDirs.forEach { dir ->
+                candidates += BridgeCandidate("build", dir.resolve(OFFICIAL_LIBRARY_FILE))
+            }
+
+            System.getProperty("java.library.path")
+                ?.split(File.pathSeparator)
+                ?.filter { it.isNotBlank() }
+                ?.map(::File)
+                ?.forEach { dir ->
+                    candidates += BridgeCandidate("java-library-path", dir.resolve(OFFICIAL_LIBRARY_FILE))
+                }
+
+            return candidates.distinctBy { it.file.absolutePath.lowercase() }
+        }
+
+        private fun explicitBridgePath(): File? =
+            System.getProperty(BRIDGE_PATH_PROPERTY)
+                ?.takeIf { it.isNotBlank() }
+                ?.let(::File)
+                ?: System.getenv(BRIDGE_PATH_ENV)
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let(::File)
+
+        private fun appendJnaLibraryPath(dir: File?) {
+            if (dir == null) return
+            val current = System.getProperty("jna.library.path")
+                ?.takeIf { it.isNotBlank() }
+            val entries = current
+                ?.split(File.pathSeparator)
+                ?.filter { it.isNotBlank() }
+                ?.toMutableList()
+                ?: mutableListOf()
+            if (entries.none { File(it).absolutePath.equals(dir.absolutePath, ignoreCase = true) }) {
+                entries += dir.absolutePath
+                System.setProperty("jna.library.path", entries.joinToString(File.pathSeparator))
+            }
+        }
+
+        private data class BridgeCandidate(
+            val source: String,
+            val file: File,
+        )
+
+        private data class BridgeLoadResult(
+            val instance: WindowsDesktopMPVBridgeLib?,
+            val diagnostics: String,
+        )
     }
 
     fun nuvio_player_create(): Pointer
