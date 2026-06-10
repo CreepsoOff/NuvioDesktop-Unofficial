@@ -38,6 +38,41 @@ constexpr const wchar_t *kWindowClass = L"NuvioPlayerBridgeVideoWindow";
 
 std::string trim(std::string value);
 
+COLORREF rgbIntToColorRef(jint rgb) {
+    return RGB((rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff);
+}
+
+void applyDwmWindowChrome(HWND hwnd, bool darkMode, COLORREF captionColor, COLORREF borderColor, COLORREF textColor) {
+    if (!IsWindow(hwnd)) return;
+
+    HMODULE dwmapi = LoadLibraryW(L"dwmapi.dll");
+    if (!dwmapi) return;
+
+    using DwmSetWindowAttributeFn = HRESULT(WINAPI *)(HWND, DWORD, LPCVOID, DWORD);
+    auto setWindowAttribute = reinterpret_cast<DwmSetWindowAttributeFn>(
+        GetProcAddress(dwmapi, "DwmSetWindowAttribute")
+    );
+    if (!setWindowAttribute) {
+        FreeLibrary(dwmapi);
+        return;
+    }
+
+    constexpr DWORD kDwmwaUseImmersiveDarkMode = 20;
+    constexpr DWORD kDwmwaUseImmersiveDarkModeLegacy = 19;
+    constexpr DWORD kDwmwaBorderColor = 34;
+    constexpr DWORD kDwmwaCaptionColor = 35;
+    constexpr DWORD kDwmwaTextColor = 36;
+
+    BOOL useDarkMode = darkMode ? TRUE : FALSE;
+    (void)setWindowAttribute(hwnd, kDwmwaUseImmersiveDarkMode, &useDarkMode, sizeof(useDarkMode));
+    (void)setWindowAttribute(hwnd, kDwmwaUseImmersiveDarkModeLegacy, &useDarkMode, sizeof(useDarkMode));
+    (void)setWindowAttribute(hwnd, kDwmwaCaptionColor, &captionColor, sizeof(captionColor));
+    (void)setWindowAttribute(hwnd, kDwmwaBorderColor, &borderColor, sizeof(borderColor));
+    (void)setWindowAttribute(hwnd, kDwmwaTextColor, &textColor, sizeof(textColor));
+
+    FreeLibrary(dwmapi);
+}
+
 std::wstring toWide(const std::string &value) {
     if (value.empty()) return std::wstring();
     int size = MultiByteToWideChar(CP_UTF8, 0, value.data(), (int)value.size(), nullptr, 0);
@@ -864,7 +899,23 @@ extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_Nat
     nuvio_player_clear_external_subtitle_and_select((void *)(intptr_t)handle, trackId);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_applyWindowChrome(JNIEnv *, jobject, jlong, jboolean, jint, jint, jint) {}
+extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_applyWindowChrome(
+    JNIEnv *,
+    jobject,
+    jlong windowHwnd,
+    jboolean darkMode,
+    jint captionColorRgb,
+    jint borderColorRgb,
+    jint textColorRgb
+) {
+    applyDwmWindowChrome(
+        (HWND)(intptr_t)windowHwnd,
+        darkMode == JNI_TRUE,
+        rgbIntToColorRef(captionColorRgb),
+        rgbIntToColorRef(borderColorRgb),
+        rgbIntToColorRef(textColorRgb)
+    );
+}
 
 extern "C" JNIEXPORT void JNICALL Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setSubtitleDelayMs(JNIEnv *, jobject, jlong handle, jint delayMs) {
     NativePlayer *player = asPlayer((void *)(intptr_t)handle);

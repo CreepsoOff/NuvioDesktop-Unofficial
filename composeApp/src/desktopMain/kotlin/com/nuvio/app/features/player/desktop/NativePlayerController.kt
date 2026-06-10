@@ -368,14 +368,15 @@ private data class NativeMpvTrack(
     val forced: Boolean = false,
 )
 
-private fun resolveTrackId(index: Int, tracks: List<NativeMpvTrack>): Int? =
+private fun resolveTrackId(indexOrId: Int, tracks: List<NativeMpvTrack>): Int? =
     tracks.firstNotNullOfOrNull { track ->
-        if (track.index == index) {
-            track.id.toIntOrNull()
+        val trackId = track.id.toIntOrNull()
+        if (track.index == indexOrId || trackId == indexOrId) {
+            trackId
         } else {
             null
         }
-    } ?: tracks.getOrNull(index)?.id?.toIntOrNull()
+    } ?: tracks.getOrNull(indexOrId)?.id?.toIntOrNull()
 
 private fun Color.toMpvColorString(): String {
     val alphaInt = (alpha * 255f).toInt().coerceIn(0, 255)

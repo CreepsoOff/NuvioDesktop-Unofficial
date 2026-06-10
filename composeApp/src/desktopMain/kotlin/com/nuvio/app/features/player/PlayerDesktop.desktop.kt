@@ -41,6 +41,7 @@ import com.nuvio.app.features.player.desktop.DesktopHostOs
 import com.nuvio.app.features.player.desktop.DesktopPlayerLaunchShield
 import com.nuvio.app.features.player.desktop.NativePlayerController
 import com.nuvio.app.features.player.desktop.NativePlayerHost
+import com.nuvio.app.features.player.desktop.applyNativeDesktopWindowChrome
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.streams.AddonStreamGroup
 import com.nuvio.app.features.streams.StreamItem
@@ -155,6 +156,7 @@ private fun NativeMediaPlayerSurface(
     onSnapshot: (PlayerPlaybackSnapshot) -> Unit,
     onError: (String?) -> Unit,
 ) {
+    val desktopWindow = LocalDesktopWindow.current
     val host = remember { NativePlayerHost() }
     val controller = remember(host) { NativePlayerController(host) }
     val hostFirstPaintComplete = remember { mutableStateOf(false) }
@@ -165,6 +167,10 @@ private fun NativeMediaPlayerSurface(
     val latestOnPlayerControlsScrubChange = rememberUpdatedState(onPlayerControlsScrubChange)
     val latestOnPlayerControlsScrubFinished = rememberUpdatedState(onPlayerControlsScrubFinished)
     val latestOnError = rememberUpdatedState(onError)
+
+    SideEffect {
+        desktopWindow?.let(::applyNativeDesktopWindowChrome)
+    }
 
     LaunchedEffect(sourceUrl) {
         DesktopPlayerLaunchShield.showForActiveWindow()
