@@ -400,7 +400,7 @@ private fun NuvioViewAllPill(
     }
 }
 
-internal const val NuvioDesktopCatalogShelfPosterScale = 1.3f
+internal const val NuvioDesktopCatalogShelfPosterScale = 1.45f
 private const val DesktopPosterHoverScale = 1.045f
 
 internal fun desktopCatalogShelfPosterBaseWidthDp(
