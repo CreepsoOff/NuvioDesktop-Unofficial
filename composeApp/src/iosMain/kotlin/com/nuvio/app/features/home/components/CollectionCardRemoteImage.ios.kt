@@ -66,11 +66,14 @@ private class GifImageViewHolder {
 @Composable
 internal actual fun CollectionCardRemoteImage(
     imageUrl: String,
+    animatedImageUrl: String?,
     contentDescription: String,
     modifier: Modifier,
     contentScale: ContentScale,
     animateIfPossible: Boolean,
+    animateNow: Boolean,
 ) {
+    val effectiveGifUrl = animatedImageUrl?.takeIf { animateIfPossible && it.isNotBlank() } ?: imageUrl
     if (!animateIfPossible) {
         AsyncImage(
             model = imageUrl,
@@ -81,14 +84,14 @@ internal actual fun CollectionCardRemoteImage(
         return
     }
 
-    var gifImage by remember(imageUrl) { mutableStateOf(cachedGifImage(imageUrl)) }
+    var gifImage by remember(effectiveGifUrl) { mutableStateOf(cachedGifImage(effectiveGifUrl)) }
 
-    LaunchedEffect(imageUrl) {
-        gifImage = loadGifImage(imageUrl)
+    LaunchedEffect(effectiveGifUrl) {
+        gifImage = loadGifImage(effectiveGifUrl)
     }
 
-    val imageViewHolder = remember(imageUrl) { GifImageViewHolder() }
-    DisposableEffect(imageUrl) {
+    val imageViewHolder = remember(effectiveGifUrl) { GifImageViewHolder() }
+    DisposableEffect(effectiveGifUrl) {
         onDispose {
             imageViewHolder.clear()
         }
@@ -101,15 +104,15 @@ internal actual fun CollectionCardRemoteImage(
                 contentMode = UIViewContentMode.UIViewContentModeScaleAspectFill
                 clipsToBounds = true
                 userInteractionEnabled = false
-                tag = imageUrl.hashCode().toLong()
+                tag = effectiveGifUrl.hashCode().toLong()
                 imageViewHolder.imageView = this
                 updateGifImage(gifImage)
             }
         },
         update = { imageView ->
             imageViewHolder.imageView = imageView
-            if (imageView.tag != imageUrl.hashCode().toLong()) {
-                imageView.tag = imageUrl.hashCode().toLong()
+            if (imageView.tag != effectiveGifUrl.hashCode().toLong()) {
+                imageView.tag = effectiveGifUrl.hashCode().toLong()
             }
             imageView.updateGifImage(gifImage)
         },
