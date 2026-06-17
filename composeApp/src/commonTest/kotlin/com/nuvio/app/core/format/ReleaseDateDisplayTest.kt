@@ -1,17 +1,18 @@
 package com.nuvio.app.core.format
 
+import com.nuvio.app.core.i18n.localizedMonthName
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ReleaseDateDisplayTest {
     @Test
     fun formatsIsoDate() {
-        assertEquals("2025 February 1", formatReleaseDateForDisplay("2025-02-01"))
+        assertEquals("2025 ${localizedMonthName(2)} 1", formatReleaseDateForDisplay("2025-02-01"))
     }
 
     @Test
     fun stripsTimePortion() {
-        assertEquals("2024 January 15", formatReleaseDateForDisplay("2024-01-15T12:30:00Z"))
+        assertEquals("2024 ${localizedMonthName(1)} 15", formatReleaseDateForDisplay("2024-01-15T12:30:00Z"))
     }
 
     @Test
@@ -36,12 +37,12 @@ class ReleaseDateDisplayTest {
 
     @Test
     fun formatsIsoDateWithoutYear() {
-        assertEquals("February 1", formatReleaseDateWithoutYear("2025-02-01"))
+        assertEquals("${localizedMonthName(2)} 1", formatReleaseDateWithoutYear("2025-02-01"))
     }
 
     @Test
     fun formatReleaseDateWithoutYearStripsTimePortion() {
-        assertEquals("January 15", formatReleaseDateWithoutYear("2024-01-15T12:30:00Z"))
+        assertEquals("${localizedMonthName(1)} 15", formatReleaseDateWithoutYear("2024-01-15T12:30:00Z"))
     }
 
     @Test
