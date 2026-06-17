@@ -73,6 +73,7 @@ data class PlayerControlsState(
     val unlockLabel: String = "Unlock player controls",
     val submitIntroLabel: String = "Submit Intro",
     val videoSettingsLabel: String = "Video settings",
+    val fullscreenLabel: String = "Fullscreen",
     val tapToUnlockLabel: String = "Tap to unlock",
     val playbackErrorTitle: String = "Playback error",
     val playbackErrorMessage: String = "",

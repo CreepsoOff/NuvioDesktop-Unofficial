@@ -1558,6 +1558,7 @@
     <!-- PlayerControls a11y -->
     <string name="player_action_submit_intro">Soumettre l’intro</string>
     <string name="player_action_video_settings">Paramètres vidéo</string>
+    <string name="player_action_fullscreen">Plein écran</string>
     <!-- CloudLibrary -->
     <string name="cloud_library_provider_unavailable">La cloud library n’est pas disponible pour %1$s.</string>
     <!-- Player iOS video settings modal -->

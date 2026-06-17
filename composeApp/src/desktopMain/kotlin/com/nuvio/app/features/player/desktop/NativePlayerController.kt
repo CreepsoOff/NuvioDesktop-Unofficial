@@ -519,6 +519,8 @@ private fun PlayerControlsState.toControlsJson(): String =
         append(',')
         appendJsonField("videoSettingsLabel", videoSettingsLabel)
         append(',')
+        appendJsonField("fullscreenLabel", fullscreenLabel)
+        append(',')
         appendJsonField("tapToUnlockLabel", tapToUnlockLabel)
         append(',')
         appendJsonField("playbackErrorTitle", playbackErrorTitle)
