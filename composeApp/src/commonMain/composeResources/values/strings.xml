@@ -1588,6 +1588,7 @@
     <!-- Player iOS video settings modal -->
     <string name="player_video_settings_title">Video</string>
     <string name="player_video_settings_reset_tuning">Reset tuning</string>
+    <string name="player_video_settings_reset_tuning_desc">Restore video tuning to the default desktop player values.</string>
     <string name="player_video_settings_output_preset">Output preset</string>
     <string name="player_video_settings_hdr_peak_detection">HDR peak detection</string>
     <string name="player_video_settings_hdr_peak_detection_desc">Estimate HDR peak brightness when metadata is bad or missing.</string>

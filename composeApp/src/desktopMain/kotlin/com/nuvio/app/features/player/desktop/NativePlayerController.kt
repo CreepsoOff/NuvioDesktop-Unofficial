@@ -43,6 +43,12 @@ internal class NativePlayerController(
     private var onEvent: (String, Double) -> Boolean = { _, _ -> false }
     private var onScrubChange: (Long) -> Boolean = { false }
     private var onScrubFinished: (Long) -> Boolean = { false }
+    private var videoBrightness = 0
+    private var videoContrast = 0
+    private var videoSaturation = 0
+    private var videoGamma = 0
+    private var videoDeband = true
+    private var videoInterpolation = false
     private val eventSink = NativePlayerEventSink { type, value ->
         SwingUtilities.invokeLater {
             handlePlayerEvent(type, value)
@@ -90,6 +96,7 @@ internal class NativePlayerController(
                 )
                 if (handle == 0L) error("Native player did not return a handle.")
                 updateControls(controlsState)
+                applyVideoTuningToHandle(handle)
             }.onFailure { error ->
                 pending.onError(error.message)
             }
@@ -130,6 +137,35 @@ internal class NativePlayerController(
                 },
             )
         }
+    }
+
+    fun applyVideoTuning(
+        brightness: Int,
+        contrast: Int,
+        saturation: Int,
+        gamma: Int,
+        deband: Boolean,
+        interpolation: Boolean,
+    ) {
+        videoBrightness = brightness.coerceIn(-50, 50)
+        videoContrast = contrast.coerceIn(-50, 50)
+        videoSaturation = saturation.coerceIn(-50, 50)
+        videoGamma = gamma.coerceIn(-50, 50)
+        videoDeband = deband
+        videoInterpolation = interpolation
+        handle.takeIf { it != 0L }?.let(::applyVideoTuningToHandle)
+    }
+
+    private fun applyVideoTuningToHandle(current: Long) {
+        NativePlayerBridge.applyVideoTuning(
+            handle = current,
+            brightness = videoBrightness,
+            contrast = videoContrast,
+            saturation = videoSaturation,
+            gamma = videoGamma,
+            deband = videoDeband,
+            interpolation = videoInterpolation,
+        )
     }
 
     private fun handlePlayerEvent(type: String, value: Double) {
