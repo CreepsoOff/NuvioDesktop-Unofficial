@@ -5,6 +5,11 @@ import com.nuvio.app.features.home.PosterShape
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.trakt.TraktListTab
 import com.nuvio.app.features.trakt.TraktListType
+import kotlinx.coroutines.runBlocking
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.library_local_tab_title
+import nuvio.composeapp.generated.resources.library_other
+import org.jetbrains.compose.resources.getString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -15,7 +20,7 @@ class LibraryRepositoryTest {
         assertEquals("Movie", "movie".toLibraryDisplayTitle())
         assertEquals("Anime Series", "anime-series".toLibraryDisplayTitle())
         assertEquals("Tv", "tv".toLibraryDisplayTitle())
-        assertEquals("Other", "".toLibraryDisplayTitle())
+        assertEquals(resourceString { getString(Res.string.library_other) }, "".toLibraryDisplayTitle())
     }
 
     @Test
@@ -76,7 +81,7 @@ class LibraryRepositoryTest {
         val tabs = libraryTabsWithLocal(listOf(traktTab))
 
         assertEquals(listOf("local", "trakt:watchlist"), tabs.map { it.key })
-        assertEquals("Nuvio Library", tabs.first().title)
+        assertEquals(resourceString { getString(Res.string.library_local_tab_title) }, tabs.first().title)
     }
 
     @Test
@@ -94,4 +99,6 @@ class LibraryRepositoryTest {
             membership,
         )
     }
+
+    private fun resourceString(provider: suspend () -> String): String = runBlocking { provider() }
 }
