@@ -25,6 +25,7 @@ const episode = document.getElementById("episode");
 const streamTitle = document.getElementById("streamTitle");
 const providerName = document.getElementById("providerName");
 const resizeLabel = document.getElementById("resizeLabel");
+const fullscreenLabel = document.getElementById("fullscreenLabel");
 const speedLabel = document.getElementById("speedLabel");
 const subtitlesLabel = document.getElementById("subtitlesLabel");
 const audioLabel = document.getElementById("audioLabel");
@@ -169,6 +170,7 @@ let state = {
   unlockLabel: "Unlock player controls",
   submitIntroLabel: "Submit Intro",
   videoSettingsLabel: "Video settings",
+  fullscreenLabel: "Fullscreen",
   tapToUnlockLabel: "Tap to unlock",
   playbackErrorTitle: "Playback error",
   playbackErrorMessage: "",
@@ -1734,12 +1736,14 @@ const renderChrome = () => {
   setText(streamTitle, state.streamTitle);
   setText(providerName, state.providerName);
   resizeLabel.textContent = state.resizeModeLabel || "Fit";
+  fullscreenLabel.textContent = state.fullscreenLabel || "Fullscreen";
   speedLabel.textContent = state.playbackSpeedLabel || "1x";
   subtitlesLabel.textContent = state.subtitlesLabel || "Subs";
   audioLabel.textContent = state.audioLabel || "Audio";
   sourcesLabel.textContent = state.sourcesLabel || "Sources";
   episodesLabel.textContent = state.episodesLabel || "Episodes";
   setActionButtonLabel("resize", state.resizeModeLabel || "Fit");
+  setActionButtonLabel("toggleFullscreen", state.fullscreenLabel || "Fullscreen");
   setActionButtonLabel("speed", state.playbackSpeedLabel || "1x");
   setActionButtonLabel("subtitles", state.subtitlesLabel || "Subs");
   setActionButtonLabel("audio", state.audioLabel || "Audio");

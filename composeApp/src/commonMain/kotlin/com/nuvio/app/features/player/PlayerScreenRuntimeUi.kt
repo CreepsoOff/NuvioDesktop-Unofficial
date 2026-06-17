@@ -186,6 +186,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         unlockLabel = stringResource(Res.string.compose_player_unlock_controls),
         submitIntroLabel = stringResource(Res.string.submit_intro_action),
         videoSettingsLabel = stringResource(Res.string.player_action_video_settings),
+        fullscreenLabel = stringResource(Res.string.player_action_fullscreen),
         tapToUnlockLabel = stringResource(Res.string.compose_player_tap_to_unlock),
         playbackErrorTitle = stringResource(Res.string.compose_player_playback_error),
         playbackErrorMessage = errorMessage.orEmpty(),
