@@ -103,6 +103,7 @@
           <button class="header-button" id="submitIntroButton" data-command="submitIntro" aria-label="Submit intro"><svg><use href="#icon-flag"></use></svg></button>
           <button class="header-button" id="lockButton" data-command="lock" aria-label="Lock controls"><svg><use id="lockIcon" href="#icon-lock"></use></svg></button>
           <button class="header-button" id="videoSettingsButton" data-command="videoSettings" aria-label="Video settings"><svg><use href="#icon-build"></use></svg></button>
+          <button class="header-button" id="playerHeaderFullscreenButton" data-command="toggleFullscreen" aria-label="Fullscreen"><svg><use href="#icon-fullscreen"></use></svg></button>
           <button class="header-button" id="backButton" data-command="back" aria-label="Close player"><svg><use href="#icon-close"></use></svg></button>
         </nav>
       </header>
@@ -377,6 +378,65 @@
           <div class="modal-actions">
             <button class="panel-button" id="p2pConsentCancelButton" type="button">Cancel</button>
             <button class="panel-button primary" id="p2pConsentEnableButton" type="button">Enable P2P</button>
+          </div>
+        </div>
+      </section>
+      <section class="modal-layer" id="videoSettingsModal" aria-label="Video settings" hidden>
+        <div class="track-panel video-settings">
+          <div class="track-header-row">
+            <div class="track-title" id="videoSettingsPanelTitle">Video</div>
+            <div class="panel-actions">
+              <button class="panel-button" id="videoSettingsResetButton" type="button">Reset</button>
+              <button class="panel-button" id="videoSettingsCloseButton" type="button">Close</button>
+            </div>
+          </div>
+
+          <div class="video-settings-list">
+            <button class="video-toggle-row" id="desktopVideoDebandToggle" type="button">
+              <span class="track-copy">
+                <span class="track-row-top">
+                  <span class="stream-name" id="desktopVideoDebandLabel">Deband</span>
+                  <span class="status-chip" id="desktopVideoDebandValue">On</span>
+                </span>
+                <span class="stream-subtitle" id="desktopVideoDebandDescription"></span>
+              </span>
+            </button>
+
+            <button class="video-toggle-row" id="desktopVideoInterpolationToggle" type="button">
+              <span class="track-copy">
+                <span class="track-row-top">
+                  <span class="stream-name" id="desktopVideoInterpolationLabel">Interpolation</span>
+                  <span class="status-chip" id="desktopVideoInterpolationValue">Off</span>
+                </span>
+                <span class="stream-subtitle" id="desktopVideoInterpolationDescription"></span>
+              </span>
+            </button>
+
+            <label class="video-slider-row">
+              <span class="style-label" id="desktopVideoBrightnessLabel">Brightness</span>
+              <span class="stepper-value" id="desktopVideoBrightnessValue">0</span>
+              <input class="video-slider" id="desktopVideoBrightnessSlider" type="range" min="-50" max="50" step="1" value="0">
+            </label>
+
+            <label class="video-slider-row">
+              <span class="style-label" id="desktopVideoContrastLabel">Contrast</span>
+              <span class="stepper-value" id="desktopVideoContrastValue">0</span>
+              <input class="video-slider" id="desktopVideoContrastSlider" type="range" min="-50" max="50" step="1" value="0">
+            </label>
+
+            <label class="video-slider-row">
+              <span class="style-label" id="desktopVideoSaturationLabel">Saturation</span>
+              <span class="stepper-value" id="desktopVideoSaturationValue">0</span>
+              <input class="video-slider" id="desktopVideoSaturationSlider" type="range" min="-50" max="50" step="1" value="0">
+            </label>
+
+            <label class="video-slider-row">
+              <span class="style-label" id="desktopVideoGammaLabel">Gamma</span>
+              <span class="stepper-value" id="desktopVideoGammaValue">0</span>
+              <input class="video-slider" id="desktopVideoGammaSlider" type="range" min="-50" max="50" step="1" value="0">
+            </label>
+
+            <div class="stream-subtitle" id="videoSettingsResetDescription"></div>
           </div>
         </div>
       </section>

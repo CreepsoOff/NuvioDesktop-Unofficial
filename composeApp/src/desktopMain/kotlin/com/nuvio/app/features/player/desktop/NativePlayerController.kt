@@ -38,6 +38,17 @@ internal class NativePlayerController(
     private var handle: Long = 0L
     private var pendingSource: PendingSource? = null
     private var controlsState = PlayerControlsState()
+
+    private data class DesktopVideoTuning(
+        val brightness: Int = 0,
+        val contrast: Int = 0,
+        val saturation: Int = 0,
+        val gamma: Int = 0,
+        val deband: Boolean = true,
+        val interpolation: Boolean = false,
+    )
+
+    private var videoTuning = DesktopVideoTuning()
     private var lastSentControlsStructureKey: PlayerControlsState? = null
     private var onAction: (PlayerControlsAction) -> Boolean = { false }
     private var onEvent: (String, Double) -> Boolean = { _, _ -> false }
@@ -90,6 +101,14 @@ internal class NativePlayerController(
                 )
                 if (handle == 0L) error("Native player did not return a handle.")
                 updateControls(controlsState)
+                applyVideoTuning(
+                    brightness = videoTuning.brightness,
+                    contrast = videoTuning.contrast,
+                    saturation = videoTuning.saturation,
+                    gamma = videoTuning.gamma,
+                    deband = videoTuning.deband,
+                    interpolation = videoTuning.interpolation,
+                )
             }.onFailure { error ->
                 pending.onError(error.message)
             }
@@ -128,6 +147,38 @@ internal class NativePlayerController(
                     PlayerResizeMode.Fill -> 1
                     PlayerResizeMode.Zoom -> 2
                 },
+            )
+        }
+    }
+
+    fun applyVideoTuning(
+        brightness: Int,
+        contrast: Int,
+        saturation: Int,
+        gamma: Int,
+        deband: Boolean,
+        interpolation: Boolean,
+    ) {
+        val next = DesktopVideoTuning(
+            brightness = brightness.coerceIn(-50, 50),
+            contrast = contrast.coerceIn(-50, 50),
+            saturation = saturation.coerceIn(-50, 50),
+            gamma = gamma.coerceIn(-50, 50),
+            deband = deband,
+            interpolation = interpolation,
+        )
+        videoTuning = next
+
+        val current = handle.takeIf { it != 0L } ?: return
+        if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
+            NativePlayerBridge.applyVideoTuning(
+                handle = current,
+                brightness = next.brightness,
+                contrast = next.contrast,
+                saturation = next.saturation,
+                gamma = next.gamma,
+                deband = next.deband,
+                interpolation = next.interpolation,
             )
         }
     }
@@ -700,6 +751,40 @@ private fun PlayerControlsState.toControlsJson(): String =
         appendJsonField("showSubmitIntro", showSubmitIntro)
         append(',')
         appendJsonField("showVideoSettings", showVideoSettings)
+        append(',')
+        appendJsonField("videoSettingsPanelTitle", videoSettingsPanelTitle)
+        append(',')
+        appendJsonField("videoSettingsResetLabel", videoSettingsResetLabel)
+        append(',')
+        appendJsonField("videoSettingsResetDescription", videoSettingsResetDescription)
+        append(',')
+        appendJsonField("desktopVideoDebandLabel", desktopVideoDebandLabel)
+        append(',')
+        appendJsonField("desktopVideoDebandDescription", desktopVideoDebandDescription)
+        append(',')
+        appendJsonField("desktopVideoInterpolationLabel", desktopVideoInterpolationLabel)
+        append(',')
+        appendJsonField("desktopVideoInterpolationDescription", desktopVideoInterpolationDescription)
+        append(',')
+        appendJsonField("desktopVideoBrightnessLabel", desktopVideoBrightnessLabel)
+        append(',')
+        appendJsonField("desktopVideoContrastLabel", desktopVideoContrastLabel)
+        append(',')
+        appendJsonField("desktopVideoSaturationLabel", desktopVideoSaturationLabel)
+        append(',')
+        appendJsonField("desktopVideoGammaLabel", desktopVideoGammaLabel)
+        append(',')
+        appendJsonField("desktopVideoDebandEnabled", desktopVideoDebandEnabled)
+        append(',')
+        appendJsonField("desktopVideoInterpolationEnabled", desktopVideoInterpolationEnabled)
+        append(',')
+        appendJsonField("desktopVideoBrightness", desktopVideoBrightness)
+        append(',')
+        appendJsonField("desktopVideoContrast", desktopVideoContrast)
+        append(',')
+        appendJsonField("desktopVideoSaturation", desktopVideoSaturation)
+        append(',')
+        appendJsonField("desktopVideoGamma", desktopVideoGamma)
         append(',')
         appendJsonField("showSources", showSources)
         append(',')

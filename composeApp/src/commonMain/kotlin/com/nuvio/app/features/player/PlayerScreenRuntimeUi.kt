@@ -261,7 +261,24 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             playerSettingsUiState.introSubmitEnabled &&
             playerSettingsUiState.introDbApiKey.isNotBlank() &&
             !activeSubmitIntroImdbId().isNullOrBlank(),
-        showVideoSettings = isIos,
+        showVideoSettings = isIos || isDesktop,
+        videoSettingsPanelTitle = stringResource(Res.string.player_video_settings_title),
+        videoSettingsResetLabel = stringResource(Res.string.player_video_settings_reset_tuning),
+        videoSettingsResetDescription = "",
+        desktopVideoDebandLabel = stringResource(Res.string.player_video_settings_deband),
+        desktopVideoDebandDescription = stringResource(Res.string.player_video_settings_deband_desc),
+        desktopVideoInterpolationLabel = stringResource(Res.string.player_video_settings_interpolation),
+        desktopVideoInterpolationDescription = stringResource(Res.string.player_video_settings_interpolation_desc),
+        desktopVideoBrightnessLabel = stringResource(Res.string.player_video_settings_brightness),
+        desktopVideoContrastLabel = stringResource(Res.string.player_video_settings_contrast),
+        desktopVideoSaturationLabel = stringResource(Res.string.player_video_settings_saturation),
+        desktopVideoGammaLabel = stringResource(Res.string.player_video_settings_gamma),
+        desktopVideoDebandEnabled = playerSettingsUiState.desktopVideoDebandEnabled,
+        desktopVideoInterpolationEnabled = playerSettingsUiState.desktopVideoInterpolationEnabled,
+        desktopVideoBrightness = playerSettingsUiState.desktopVideoBrightness,
+        desktopVideoContrast = playerSettingsUiState.desktopVideoContrast,
+        desktopVideoSaturation = playerSettingsUiState.desktopVideoSaturation,
+        desktopVideoGamma = playerSettingsUiState.desktopVideoGamma,
         showSources = activeVideoId != null,
         showEpisodes = isSeries,
         showExternalPlayer = args.onOpenInExternalPlayer != null,
@@ -785,6 +802,34 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
         "subtitleStyleReset" -> PlayerSettingsRepository.setSubtitleStyle(SubtitleStyleState.DEFAULT)
         "parentalGuideComplete" -> {
             showParentalGuide = false
+        }
+        "desktopVideoBrightness" -> {
+            PlayerSettingsRepository.setDesktopVideoBrightness(value.toInt())
+            true
+        }
+        "desktopVideoContrast" -> {
+            PlayerSettingsRepository.setDesktopVideoContrast(value.toInt())
+            true
+        }
+        "desktopVideoSaturation" -> {
+            PlayerSettingsRepository.setDesktopVideoSaturation(value.toInt())
+            true
+        }
+        "desktopVideoGamma" -> {
+            PlayerSettingsRepository.setDesktopVideoGamma(value.toInt())
+            true
+        }
+        "desktopVideoDeband" -> {
+            PlayerSettingsRepository.setDesktopVideoDebandEnabled(value > 0.0)
+            true
+        }
+        "desktopVideoInterpolation" -> {
+            PlayerSettingsRepository.setDesktopVideoInterpolationEnabled(value > 0.0)
+            true
+        }
+        "desktopVideoReset" -> {
+            PlayerSettingsRepository.resetDesktopVideoTuning()
+            true
         }
         else -> return false
     }

@@ -85,6 +85,15 @@ internal object NativePlayerBridge {
         fontSize: Float,
         subPos: Int,
     )
+    external fun applyVideoTuning(
+        handle: Long,
+        brightness: Int,
+        contrast: Int,
+        saturation: Int,
+        gamma: Int,
+        deband: Boolean,
+        interpolation: Boolean,
+    )
     external fun warmupWebView2(controlsPageUrl: String): Boolean
     external fun shutdownWebView2Warmup()
 

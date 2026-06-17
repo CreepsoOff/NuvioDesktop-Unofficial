@@ -9,9 +9,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +25,7 @@ import com.nuvio.app.features.player.desktop.DesktopPlayerLaunchShield
 import com.nuvio.app.features.player.desktop.NativePlayerController
 import com.nuvio.app.features.player.desktop.NativePlayerHost
 import kotlinx.coroutines.delay
+import com.nuvio.app.features.player.PlayerSettingsRepository
 
 @Composable
 actual fun PlatformPlayerSurface(
@@ -170,6 +174,27 @@ private fun NativePlayerSurface(
 
     LaunchedEffect(controller, playerControlsState) {
         controller.updateControls(playerControlsState)
+    }
+
+    val playerSettings by PlayerSettingsRepository.uiState.collectAsState()
+
+    LaunchedEffect(
+        controller,
+        playerSettings.desktopVideoBrightness,
+        playerSettings.desktopVideoContrast,
+        playerSettings.desktopVideoSaturation,
+        playerSettings.desktopVideoGamma,
+        playerSettings.desktopVideoDebandEnabled,
+        playerSettings.desktopVideoInterpolationEnabled,
+    ) {
+        controller.applyVideoTuning(
+            brightness = playerSettings.desktopVideoBrightness,
+            contrast = playerSettings.desktopVideoContrast,
+            saturation = playerSettings.desktopVideoSaturation,
+            gamma = playerSettings.desktopVideoGamma,
+            deband = playerSettings.desktopVideoDebandEnabled,
+            interpolation = playerSettings.desktopVideoInterpolationEnabled,
+        )
     }
 
     LaunchedEffect(controller) {

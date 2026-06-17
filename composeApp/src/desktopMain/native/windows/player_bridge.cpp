@@ -842,6 +842,30 @@ public:
         }
     }
 
+    void applyVideoTuning(
+        int brightness,
+        int contrast,
+        int saturation,
+        int gamma,
+        bool deband,
+        bool interpolation
+    ) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv) return;
+
+        int64_t b = std::max(-50, std::min(50, brightness));
+        int64_t c = std::max(-50, std::min(50, contrast));
+        int64_t s = std::max(-50, std::min(50, saturation));
+        int64_t g = std::max(-50, std::min(50, gamma));
+
+        mpvApi().setProperty(mpv, "brightness", MPV_FORMAT_INT64, &b);
+        mpvApi().setProperty(mpv, "contrast", MPV_FORMAT_INT64, &c);
+        mpvApi().setProperty(mpv, "saturation", MPV_FORMAT_INT64, &s);
+        mpvApi().setProperty(mpv, "gamma", MPV_FORMAT_INT64, &g);
+        mpvApi().setPropertyString(mpv, "deband", deband ? "yes" : "no");
+        mpvApi().setPropertyString(mpv, "interpolation", interpolation ? "yes" : "no");
+    }
+
     long long durationMs() {
         return (long long)std::llround(doubleProperty("duration", 0.0) * 1000.0);
     }
@@ -2093,6 +2117,30 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setSubtitleDelayMs(JNIEnv *, jobject, jlong handle, jint delayMs) {
     auto player = playerFromHandle(handle);
     if (player) player->setSubtitleDelayMs(delayMs);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_applyVideoTuning(
+    JNIEnv *,
+    jobject,
+    jlong handle,
+    jint brightness,
+    jint contrast,
+    jint saturation,
+    jint gamma,
+    jboolean deband,
+    jboolean interpolation
+) {
+    auto player = playerFromHandle(handle);
+    if (!player) return;
+    player->applyVideoTuning(
+        static_cast<int>(brightness),
+        static_cast<int>(contrast),
+        static_cast<int>(saturation),
+        static_cast<int>(gamma),
+        deband == JNI_TRUE,
+        interpolation == JNI_TRUE
+    );
 }
 
 extern "C" JNIEXPORT void JNICALL

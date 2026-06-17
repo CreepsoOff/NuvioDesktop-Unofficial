@@ -2157,6 +2157,63 @@ button.action:focus-visible {
   padding: 0 20px 20px;
 }
 
+.track-panel.video-settings {
+  width: min(460px, calc(100vw - 48px));
+}
+
+.video-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.video-toggle-row,
+.video-slider-row {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, .055);
+  border-radius: 16px;
+  color: var(--control-foreground, #fff);
+}
+
+.video-toggle-row {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.video-toggle-row:hover,
+.video-slider-row:hover {
+  background: rgba(255, 255, 255, .085);
+}
+
+.video-slider-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 14px;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.video-slider {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--theme-accent, #2f6fed);
+}
+
+.video-toggle-row .status-chip {
+  min-width: 44px;
+  text-align: center;
+}
+
+.video-toggle-row .status-chip.selected {
+  background: var(--theme-accent, #2f6fed);
+  color: var(--theme-on-accent, #fff);
+}
+
 .modal-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);

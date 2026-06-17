@@ -79,6 +79,12 @@ internal actual object PlayerSettingsStorage {
     private const val iosContrastKey = "ios_contrast"
     private const val iosSaturationKey = "ios_saturation"
     private const val iosGammaKey = "ios_gamma"
+    private const val desktopVideoDebandEnabledKey = "desktop_video_deband_enabled"
+    private const val desktopVideoInterpolationEnabledKey = "desktop_video_interpolation_enabled"
+    private const val desktopVideoBrightnessKey = "desktop_video_brightness"
+    private const val desktopVideoContrastKey = "desktop_video_contrast"
+    private const val desktopVideoSaturationKey = "desktop_video_saturation"
+    private const val desktopVideoGammaKey = "desktop_video_gamma"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         resizeModeKey,
@@ -140,6 +146,12 @@ internal actual object PlayerSettingsStorage {
         iosContrastKey,
         iosSaturationKey,
         iosGammaKey,
+        desktopVideoDebandEnabledKey,
+        desktopVideoInterpolationEnabledKey,
+        desktopVideoBrightnessKey,
+        desktopVideoContrastKey,
+        desktopVideoSaturationKey,
+        desktopVideoGammaKey,
     )
     private val store = DesktopStorage.store("nuvio_player_settings")
 
@@ -267,6 +279,18 @@ internal actual object PlayerSettingsStorage {
     actual fun saveIosSaturation(value: Int) = saveInt(iosSaturationKey, value)
     actual fun loadIosGamma(): Int? = loadInt(iosGammaKey)
     actual fun saveIosGamma(value: Int) = saveInt(iosGammaKey, value)
+    actual fun loadDesktopVideoDebandEnabled(): Boolean? = loadBoolean(desktopVideoDebandEnabledKey)
+    actual fun saveDesktopVideoDebandEnabled(enabled: Boolean) = saveBoolean(desktopVideoDebandEnabledKey, enabled)
+    actual fun loadDesktopVideoInterpolationEnabled(): Boolean? = loadBoolean(desktopVideoInterpolationEnabledKey)
+    actual fun saveDesktopVideoInterpolationEnabled(enabled: Boolean) = saveBoolean(desktopVideoInterpolationEnabledKey, enabled)
+    actual fun loadDesktopVideoBrightness(): Int? = loadInt(desktopVideoBrightnessKey)
+    actual fun saveDesktopVideoBrightness(value: Int) = saveInt(desktopVideoBrightnessKey, value)
+    actual fun loadDesktopVideoContrast(): Int? = loadInt(desktopVideoContrastKey)
+    actual fun saveDesktopVideoContrast(value: Int) = saveInt(desktopVideoContrastKey, value)
+    actual fun loadDesktopVideoSaturation(): Int? = loadInt(desktopVideoSaturationKey)
+    actual fun saveDesktopVideoSaturation(value: Int) = saveInt(desktopVideoSaturationKey, value)
+    actual fun loadDesktopVideoGamma(): Int? = loadInt(desktopVideoGammaKey)
+    actual fun saveDesktopVideoGamma(value: Int) = saveInt(desktopVideoGammaKey, value)
 
     private fun scoped(key: String): String = ProfileScopedKey.of(key)
     private fun loadString(key: String): String? = store.getString(scoped(key))
@@ -342,6 +366,12 @@ internal actual object PlayerSettingsStorage {
         loadIosContrast()?.let { put(iosContrastKey, encodeSyncInt(it)) }
         loadIosSaturation()?.let { put(iosSaturationKey, encodeSyncInt(it)) }
         loadIosGamma()?.let { put(iosGammaKey, encodeSyncInt(it)) }
+        loadDesktopVideoDebandEnabled()?.let { put(desktopVideoDebandEnabledKey, encodeSyncBoolean(it)) }
+        loadDesktopVideoInterpolationEnabled()?.let { put(desktopVideoInterpolationEnabledKey, encodeSyncBoolean(it)) }
+        loadDesktopVideoBrightness()?.let { put(desktopVideoBrightnessKey, encodeSyncInt(it)) }
+        loadDesktopVideoContrast()?.let { put(desktopVideoContrastKey, encodeSyncInt(it)) }
+        loadDesktopVideoSaturation()?.let { put(desktopVideoSaturationKey, encodeSyncInt(it)) }
+        loadDesktopVideoGamma()?.let { put(desktopVideoGammaKey, encodeSyncInt(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -408,5 +438,11 @@ internal actual object PlayerSettingsStorage {
         payload.decodeSyncInt(iosContrastKey)?.let(::saveIosContrast)
         payload.decodeSyncInt(iosSaturationKey)?.let(::saveIosSaturation)
         payload.decodeSyncInt(iosGammaKey)?.let(::saveIosGamma)
+        payload.decodeSyncBoolean(desktopVideoDebandEnabledKey)?.let(::saveDesktopVideoDebandEnabled)
+        payload.decodeSyncBoolean(desktopVideoInterpolationEnabledKey)?.let(::saveDesktopVideoInterpolationEnabled)
+        payload.decodeSyncInt(desktopVideoBrightnessKey)?.let(::saveDesktopVideoBrightness)
+        payload.decodeSyncInt(desktopVideoContrastKey)?.let(::saveDesktopVideoContrast)
+        payload.decodeSyncInt(desktopVideoSaturationKey)?.let(::saveDesktopVideoSaturation)
+        payload.decodeSyncInt(desktopVideoGammaKey)?.let(::saveDesktopVideoGamma)
     }
 }

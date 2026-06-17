@@ -81,6 +81,12 @@ actual object PlayerSettingsStorage {
     private const val iosContrastKey = "ios_contrast"
     private const val iosSaturationKey = "ios_saturation"
     private const val iosGammaKey = "ios_gamma"
+    private const val desktopVideoDebandEnabledKey = "desktop_video_deband_enabled"
+    private const val desktopVideoInterpolationEnabledKey = "desktop_video_interpolation_enabled"
+    private const val desktopVideoBrightnessKey = "desktop_video_brightness"
+    private const val desktopVideoContrastKey = "desktop_video_contrast"
+    private const val desktopVideoSaturationKey = "desktop_video_saturation"
+    private const val desktopVideoGammaKey = "desktop_video_gamma"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         resizeModeKey,
@@ -142,6 +148,12 @@ actual object PlayerSettingsStorage {
         iosContrastKey,
         iosSaturationKey,
         iosGammaKey,
+        desktopVideoDebandEnabledKey,
+        desktopVideoInterpolationEnabledKey,
+        desktopVideoBrightnessKey,
+        desktopVideoContrastKey,
+        desktopVideoSaturationKey,
+        desktopVideoGammaKey,
     )
 
     private var preferences: SharedPreferences? = null
@@ -972,6 +984,30 @@ actual object PlayerSettingsStorage {
         saveIosInt(iosGammaKey, value)
     }
 
+    actual fun loadDesktopVideoDebandEnabled(): Boolean? = null
+
+    actual fun saveDesktopVideoDebandEnabled(enabled: Boolean) {}
+
+    actual fun loadDesktopVideoInterpolationEnabled(): Boolean? = null
+
+    actual fun saveDesktopVideoInterpolationEnabled(enabled: Boolean) {}
+
+    actual fun loadDesktopVideoBrightness(): Int? = null
+
+    actual fun saveDesktopVideoBrightness(value: Int) {}
+
+    actual fun loadDesktopVideoContrast(): Int? = null
+
+    actual fun saveDesktopVideoContrast(value: Int) {}
+
+    actual fun loadDesktopVideoSaturation(): Int? = null
+
+    actual fun saveDesktopVideoSaturation(value: Int) {}
+
+    actual fun loadDesktopVideoGamma(): Int? = null
+
+    actual fun saveDesktopVideoGamma(value: Int) {}
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadResizeMode()?.let { put(resizeModeKey, encodeSyncString(it)) }
@@ -1033,6 +1069,12 @@ actual object PlayerSettingsStorage {
         loadIosContrast()?.let { put(iosContrastKey, encodeSyncInt(it)) }
         loadIosSaturation()?.let { put(iosSaturationKey, encodeSyncInt(it)) }
         loadIosGamma()?.let { put(iosGammaKey, encodeSyncInt(it)) }
+        loadDesktopVideoDebandEnabled()?.let { put(desktopVideoDebandEnabledKey, encodeSyncBoolean(it)) }
+        loadDesktopVideoInterpolationEnabled()?.let { put(desktopVideoInterpolationEnabledKey, encodeSyncBoolean(it)) }
+        loadDesktopVideoBrightness()?.let { put(desktopVideoBrightnessKey, encodeSyncInt(it)) }
+        loadDesktopVideoContrast()?.let { put(desktopVideoContrastKey, encodeSyncInt(it)) }
+        loadDesktopVideoSaturation()?.let { put(desktopVideoSaturationKey, encodeSyncInt(it)) }
+        loadDesktopVideoGamma()?.let { put(desktopVideoGammaKey, encodeSyncInt(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -1102,5 +1144,11 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncInt(iosContrastKey)?.let(::saveIosContrast)
         payload.decodeSyncInt(iosSaturationKey)?.let(::saveIosSaturation)
         payload.decodeSyncInt(iosGammaKey)?.let(::saveIosGamma)
+        payload.decodeSyncBoolean(desktopVideoDebandEnabledKey)?.let(::saveDesktopVideoDebandEnabled)
+        payload.decodeSyncBoolean(desktopVideoInterpolationEnabledKey)?.let(::saveDesktopVideoInterpolationEnabled)
+        payload.decodeSyncInt(desktopVideoBrightnessKey)?.let(::saveDesktopVideoBrightness)
+        payload.decodeSyncInt(desktopVideoContrastKey)?.let(::saveDesktopVideoContrast)
+        payload.decodeSyncInt(desktopVideoSaturationKey)?.let(::saveDesktopVideoSaturation)
+        payload.decodeSyncInt(desktopVideoGammaKey)?.let(::saveDesktopVideoGamma)
     }
 }
