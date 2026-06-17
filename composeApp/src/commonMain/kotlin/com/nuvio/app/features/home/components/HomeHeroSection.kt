@@ -1,0 +1,888 @@
+package com.nuvio.app.features.home.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.nuvio.app.isDesktop
+import com.nuvio.app.core.ui.NuvioDesktopImageScaling
+import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
+import com.nuvio.app.core.format.formatReleaseDateForDisplay
+import com.nuvio.app.features.home.MetaPreview
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
+import kotlin.math.abs
+
+private const val HERO_BACKGROUND_PARALLAX = 0.055f
+private const val HERO_BACKGROUND_SCALE = 1.14f
+private const val HERO_CONTENT_PARALLAX = 0.18f
+private const val HERO_SCROLL_PARALLAX = 0.3f
+private const val HERO_SCROLL_DOWN_SCALE_MULTIPLIER = 0.0001f
+private const val HERO_SCROLL_UP_SCALE_MULTIPLIER = 0.002f
+private const val HERO_SCROLL_MAX_SCALE = 1.3f
+private const val HERO_SWIPE_THRESHOLD_FRACTION = 0.16f
+private const val HERO_SWIPE_VELOCITY_THRESHOLD = 300f
+private const val MOBILE_HERO_VIEWPORT_RATIO = 0.82f
+private const val MOBILE_HERO_MIN_HEIGHT_DP = 360f
+private const val MOBILE_HERO_MAX_HEIGHT_DP = 760f
+
+internal data class HomeHeroLayout(
+    val isTablet: Boolean,
+    val heroHeight: Dp,
+    val contentMaxWidth: Dp,
+    val contentWidthFraction: Float,
+    val contentHorizontalPadding: Dp,
+    val contentVerticalPadding: Dp,
+    val bottomFadeHeight: Dp,
+    val logoWidthFraction: Float,
+)
+
+@Composable
+fun HomeHeroSection(
+    items: List<MetaPreview>,
+    modifier: Modifier = Modifier,
+    viewportHeight: Dp? = null,
+    mobileBelowSectionHeightHint: Dp? = null,
+    sectionPadding: Dp? = null,
+    listState: LazyListState? = null,
+    onItemClick: ((MetaPreview) -> Unit)? = null,
+) {
+    if (items.isEmpty()) return
+
+    val pagerState = rememberPagerState(pageCount = { items.size })
+    val coroutineScope = rememberCoroutineScope()
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .homeHeroPagerGesture(
+                pagerState = pagerState,
+                itemCount = items.size,
+                coroutineScope = coroutineScope,
+            )
+            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
+    ) {
+        val layout = homeHeroLayout(
+            maxWidthDp = maxWidth.value,
+            viewportHeightDp = viewportHeight?.value,
+            mobileBelowSectionHeightHintDp = mobileBelowSectionHeightHint?.value,
+            preferDesktopLayout = isDesktop,
+        )
+        val heroWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
+        val heroHeightPx = with(LocalDensity.current) { layout.heroHeight.toPx() }
+        val scrollOffsetPx by remember(listState, heroHeightPx) {
+            derivedStateOf {
+                when {
+                    listState == null -> 0f
+                    listState.firstVisibleItemIndex > 0 -> heroHeightPx
+                    else -> listState.firstVisibleItemScrollOffset.toFloat()
+                }
+            }
+        }
+        val heroScrollScale = heroBackgroundScrollScale(scrollOffsetPx)
+        val heroScrollTranslationY = heroBackgroundScrollTranslationY(scrollOffsetPx)
+        val currentPage = pagerState.currentPage.coerceIn(items.indices)
+        val visiblePages = listOf(
+            currentPage,
+            (currentPage - 1).coerceIn(items.indices),
+            (currentPage + 1).coerceIn(items.indices),
+        ).distinct()
+            .mapNotNull { index ->
+                val pageOffset = heroPageOffset(pagerState, index)
+                val visibility = (1f - abs(pageOffset)).coerceIn(0f, 1f)
+                if (visibility <= 0f) {
+                    null
+                } else {
+                    HeroPageLayer(
+                        page = index,
+                        visibility = visibility,
+                        offset = pageOffset,
+                    )
+                }
+            }
+            .sortedBy(HeroPageLayer::visibility)
+        val currentItem = visiblePages
+            .lastOrNull()
+            ?.page
+            ?.let(items::get)
+            ?: items[currentPage]
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(layout.heroHeight),
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = false,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = 0.01f },
+            ) {
+                Box(modifier = Modifier.fillMaxSize())
+            }
+
+            if (isDesktop) {
+                DesktopHomeHeroFrame(
+                    items = items,
+                    visiblePages = visiblePages,
+                    layout = layout,
+                    heroWidthPx = heroWidthPx,
+                    heroScrollScale = heroScrollScale,
+                    heroScrollTranslationY = heroScrollTranslationY,
+                    contentHorizontalPadding = sectionPadding ?: layout.contentHorizontalPadding,
+                    pagerState = pagerState,
+                    coroutineScope = coroutineScope,
+                    onItemClick = onItemClick,
+                )
+            } else {
+                DefaultHomeHeroFrame(
+                    items = items,
+                    visiblePages = visiblePages,
+                    currentItem = currentItem,
+                    layout = layout,
+                    heroWidthPx = heroWidthPx,
+                    heroScrollScale = heroScrollScale,
+                    heroScrollTranslationY = heroScrollTranslationY,
+                    pagerState = pagerState,
+                    coroutineScope = coroutineScope,
+                    onItemClick = onItemClick,
+                )
+            }
+        }
+    }
+}
+
+private data class HeroPageLayer(
+    val page: Int,
+    val visibility: Float,
+    val offset: Float,
+)
+
+@Composable
+private fun DefaultHomeHeroFrame(
+    items: List<MetaPreview>,
+    visiblePages: List<HeroPageLayer>,
+    currentItem: MetaPreview,
+    layout: HomeHeroLayout,
+    heroWidthPx: Float,
+    heroScrollScale: Float,
+    heroScrollTranslationY: Float,
+    pagerState: PagerState,
+    coroutineScope: CoroutineScope,
+    onItemClick: ((MetaPreview) -> Unit)?,
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        visiblePages.forEach { layer ->
+            AsyncImage(
+                model = items[layer.page].banner ?: items[layer.page].poster,
+                contentDescription = items[layer.page].name,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = layer.visibility
+                        translationX = -layer.offset * heroWidthPx * HERO_BACKGROUND_PARALLAX
+                        translationY = heroScrollTranslationY
+                        scaleX = HERO_BACKGROUND_SCALE * heroScrollScale
+                        scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
+                    },
+                alignment = if (layout.isTablet) Alignment.TopCenter else Alignment.Center,
+                contentScale = ContentScale.Crop,
+                desktopImageScaling = NuvioDesktopImageScaling.Disabled,
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.02f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.12f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.34f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.78f),
+                        ),
+                    ),
+                ),
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(layout.bottomFadeHeight)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.background.copy(alpha = 0f),
+                            MaterialTheme.colorScheme.background,
+                        ),
+                    ),
+                ),
+        )
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(
+                    horizontal = layout.contentHorizontalPadding,
+                    vertical = layout.contentVerticalPadding,
+                ),
+            horizontalAlignment = if (layout.isTablet) Alignment.Start else Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(layout.contentWidthFraction)
+                    .widthIn(max = layout.contentMaxWidth),
+                contentAlignment = if (layout.isTablet) Alignment.CenterStart else Alignment.Center,
+            ) {
+                visiblePages.forEach { layer ->
+                    Box(
+                        modifier = Modifier.graphicsLayer {
+                            alpha = layer.visibility
+                            translationX = -layer.offset * heroWidthPx * HERO_CONTENT_PARALLAX
+                        },
+                    ) {
+                        HeroContentBlock(
+                            item = items[layer.page],
+                            layout = layout,
+                            onItemClick = onItemClick,
+                        )
+                    }
+                }
+            }
+
+            if (!layout.isTablet) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Surface(
+                    modifier = Modifier
+                        .clickable(enabled = onItemClick != null) {
+                            onItemClick?.invoke(currentItem)
+                        },
+                    color = MaterialTheme.colorScheme.onBackground,
+                    contentColor = MaterialTheme.colorScheme.background,
+                    shape = RoundedCornerShape(40.dp),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.home_view_details),
+                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
+            HeroPageIndicatorRow(
+                itemCount = items.size,
+                pagerState = pagerState,
+                coroutineScope = coroutineScope,
+                modifier = Modifier.padding(top = if (layout.isTablet) 14.dp else 12.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DesktopHomeHeroFrame(
+    items: List<MetaPreview>,
+    visiblePages: List<HeroPageLayer>,
+    layout: HomeHeroLayout,
+    heroWidthPx: Float,
+    heroScrollScale: Float,
+    heroScrollTranslationY: Float,
+    contentHorizontalPadding: Dp,
+    pagerState: PagerState,
+    coroutineScope: CoroutineScope,
+    onItemClick: ((MetaPreview) -> Unit)?,
+) {
+    val backgroundColor = MaterialTheme.colorScheme.background
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(backgroundColor),
+    ) {
+        visiblePages.forEach { layer ->
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.64f)
+                    .graphicsLayer {
+                        alpha = layer.visibility
+                        translationX = -layer.offset * heroWidthPx * HERO_BACKGROUND_PARALLAX
+                        translationY = heroScrollTranslationY
+                        scaleX = 1.02f * heroScrollScale
+                        scaleY = 1.02f * heroScrollScale
+                    },
+            ) {
+                AsyncImage(
+                    model = items[layer.page].banner ?: items[layer.page].poster,
+                    contentDescription = items[layer.page].name,
+                    modifier = Modifier.fillMaxSize(),
+                    alignment = Alignment.Center,
+                    contentScale = ContentScale.Crop,
+                    desktopImageScaling = NuvioDesktopImageScaling.Disabled,
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        colorStops = arrayOf(
+                            0f to backgroundColor,
+                            0.34f to backgroundColor,
+                            0.58f to backgroundColor.copy(alpha = 0.78f),
+                            0.78f to backgroundColor.copy(alpha = 0.18f),
+                            1f to backgroundColor.copy(alpha = 0f),
+                        ),
+                    ),
+                ),
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(layout.bottomFadeHeight)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            backgroundColor.copy(alpha = 0f),
+                            backgroundColor,
+                        ),
+                    ),
+                ),
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = contentHorizontalPadding, end = contentHorizontalPadding)
+                .fillMaxWidth(layout.contentWidthFraction)
+                .widthIn(max = layout.contentMaxWidth),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            visiblePages.forEach { layer ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            alpha = layer.visibility
+                            translationX = -layer.offset * heroWidthPx * HERO_CONTENT_PARALLAX
+                        },
+                ) {
+                    DesktopHeroContentBlock(
+                        item = items[layer.page],
+                        layout = layout,
+                        onItemClick = onItemClick,
+                    )
+                }
+            }
+        }
+
+        HeroPageIndicatorRow(
+            itemCount = items.size,
+            pagerState = pagerState,
+            coroutineScope = coroutineScope,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(
+                    start = contentHorizontalPadding,
+                    bottom = layout.contentVerticalPadding,
+                ),
+        )
+    }
+}
+
+@Composable
+private fun HeroPageIndicatorRow(
+    itemCount: Int,
+    pagerState: PagerState,
+    coroutineScope: CoroutineScope,
+    modifier: Modifier = Modifier,
+) {
+    if (itemCount <= 1) return
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        repeat(itemCount) { index ->
+            val activeFraction = heroPageVisibility(pagerState, index)
+            Box(
+                modifier = Modifier
+                    .clickable {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(index)
+                        }
+                    }
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onBackground)
+                    .graphicsLayer {
+                        alpha = 0.35f + (0.57f * activeFraction)
+                    }
+                    .width(8.dp + (24.dp * activeFraction))
+                    .height(8.dp),
+            )
+        }
+    }
+}
+
+private fun heroPageOffset(
+    pagerState: PagerState,
+    page: Int,
+): Float = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+
+private fun heroPageVisibility(
+    pagerState: PagerState,
+    page: Int,
+): Float {
+    return (1f - abs(heroPageOffset(pagerState, page))).coerceIn(0f, 1f)
+}
+
+@Composable
+fun HomeHeroReservedSpace(
+    modifier: Modifier = Modifier,
+    viewportHeight: Dp? = null,
+    mobileBelowSectionHeightHint: Dp? = null,
+) {
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
+    ) {
+        val layout = homeHeroLayout(
+            maxWidthDp = maxWidth.value,
+            viewportHeightDp = viewportHeight?.value,
+            mobileBelowSectionHeightHintDp = mobileBelowSectionHeightHint?.value,
+            preferDesktopLayout = isDesktop,
+        )
+
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(layout.heroHeight),
+        )
+    }
+}
+
+@Composable
+private fun HeroContentBlock(
+    item: MetaPreview,
+    layout: HomeHeroLayout,
+    onItemClick: ((MetaPreview) -> Unit)?,
+) {
+    var logoLoadError by remember(item.type, item.id, item.logo) {
+        mutableStateOf(false)
+    }
+    val logoUrl = item.logo?.takeIf { it.isNotBlank() }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (layout.isTablet) Alignment.Start else Alignment.CenterHorizontally,
+    ) {
+        if (logoUrl != null && !logoLoadError) {
+            AsyncImage(
+                model = logoUrl,
+                contentDescription = item.name,
+                modifier = Modifier
+                    .fillMaxWidth(layout.logoWidthFraction)
+                    .aspectRatio(2.6f)
+                    .clickable(enabled = onItemClick != null) {
+                        onItemClick?.invoke(item)
+                    },
+                alignment = if (layout.isTablet) Alignment.CenterStart else Alignment.Center,
+                contentScale = ContentScale.Fit,
+                onError = { logoLoadError = true },
+            )
+        } else {
+            Text(
+                text = item.name,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = onItemClick != null) {
+                        onItemClick?.invoke(item)
+                    },
+                style = if (layout.isTablet) {
+                    MaterialTheme.typography.displaySmall
+                } else {
+                    MaterialTheme.typography.displaySmall
+                },
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Black,
+                textAlign = if (layout.isTablet) TextAlign.Start else TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (layout.isTablet) {
+                Arrangement.spacedBy(8.dp, Alignment.Start)
+            } else {
+                Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+            },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            HeroMetaText(text = item.type.replaceFirstChar(Char::uppercase))
+            item.genres.firstOrNull()?.let { genre ->
+                HeroMetaDot()
+                HeroMetaText(text = genre)
+            }
+            item.releaseInfo?.takeIf { it.isNotBlank() }?.let { info ->
+                HeroMetaDot()
+                HeroMetaText(text = formatReleaseDateForDisplay(info))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DesktopHeroContentBlock(
+    item: MetaPreview,
+    layout: HomeHeroLayout,
+    onItemClick: ((MetaPreview) -> Unit)?,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = onItemClick != null) {
+                onItemClick?.invoke(item)
+            },
+        horizontalAlignment = Alignment.Start,
+    ) {
+        if (item.logo != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(desktopHeroLogoSlotHeight(layout)),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                AsyncImage(
+                    model = item.logo,
+                    contentDescription = item.name,
+                    modifier = Modifier
+                        .fillMaxWidth(desktopHeroLogoWidthFraction(layout))
+                        .fillMaxHeight(),
+                    alignment = Alignment.CenterStart,
+                    contentScale = ContentScale.Fit,
+                    clipToBounds = false,
+                )
+            }
+        } else {
+            Text(
+                text = item.name,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.displayMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Start,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        val genreText = desktopHeroGenreText(item)
+        if (genreText.isNotBlank()) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = genreText,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.76f),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        item.description?.takeIf { it.isNotBlank() }?.let { description ->
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.82f),
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+private fun desktopHeroLogoWidthFraction(layout: HomeHeroLayout): Float =
+    when {
+        layout.contentMaxWidth >= 640.dp -> 0.74f
+        layout.contentMaxWidth >= 520.dp -> 0.74f
+        else -> 0.8f
+    }
+
+private fun desktopHeroLogoSlotHeight(layout: HomeHeroLayout): Dp =
+    when {
+        layout.contentMaxWidth >= 640.dp -> 156.dp
+        layout.contentMaxWidth >= 520.dp -> 136.dp
+        else -> 104.dp
+    }
+
+private fun desktopHeroGenreText(item: MetaPreview): String =
+    item.genres
+        .take(3)
+        .joinToString(" • ")
+        .ifBlank { item.type.replaceFirstChar(Char::uppercase) }
+
+@Composable
+private fun HeroMetaText(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onBackground,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+internal fun homeHeroLayout(
+    maxWidthDp: Float,
+    viewportHeightDp: Float? = null,
+    mobileBelowSectionHeightHintDp: Float? = null,
+    preferDesktopLayout: Boolean = false,
+): HomeHeroLayout =
+    when {
+        maxWidthDp >= 1200f -> HomeHeroLayout(
+            isTablet = true,
+            heroHeight = (maxWidthDp * 0.42f).dp.coerceIn(360.dp, 440.dp),
+            contentMaxWidth = 640.dp,
+            contentWidthFraction = 0.56f,
+            contentHorizontalPadding = 56.dp,
+            contentVerticalPadding = 22.dp,
+            bottomFadeHeight = 190.dp,
+            logoWidthFraction = 0.58f,
+        )
+        maxWidthDp >= 840f -> HomeHeroLayout(
+            isTablet = true,
+            heroHeight = (maxWidthDp * 0.46f).dp.coerceIn(340.dp, 420.dp),
+            contentMaxWidth = 560.dp,
+            contentWidthFraction = 0.62f,
+            contentHorizontalPadding = 40.dp,
+            contentVerticalPadding = 20.dp,
+            bottomFadeHeight = 180.dp,
+            logoWidthFraction = 0.56f,
+        )
+        maxWidthDp >= 600f -> HomeHeroLayout(
+            isTablet = true,
+            heroHeight = (maxWidthDp * 0.58f).dp.coerceIn(320.dp, 380.dp),
+            contentMaxWidth = 520.dp,
+            contentWidthFraction = 0.72f,
+            contentHorizontalPadding = 32.dp,
+            contentVerticalPadding = 18.dp,
+            bottomFadeHeight = 170.dp,
+            logoWidthFraction = 0.54f,
+        )
+        preferDesktopLayout -> HomeHeroLayout(
+            isTablet = true,
+            heroHeight = (maxWidthDp * 0.68f).dp.coerceIn(300.dp, 360.dp),
+            contentMaxWidth = 360.dp,
+            contentWidthFraction = 0.56f,
+            contentHorizontalPadding = 16.dp,
+            contentVerticalPadding = 18.dp,
+            bottomFadeHeight = 150.dp,
+            logoWidthFraction = 0.64f,
+        )
+        else -> HomeHeroLayout(
+            isTablet = false,
+            heroHeight = mobileHeroHeight(
+                maxWidthDp = maxWidthDp,
+                viewportHeightDp = viewportHeightDp,
+                mobileBelowSectionHeightHintDp = mobileBelowSectionHeightHintDp,
+            ),
+            contentMaxWidth = 480.dp,
+            contentWidthFraction = 1f,
+            contentHorizontalPadding = 24.dp,
+            contentVerticalPadding = 16.dp,
+            bottomFadeHeight = 220.dp,
+            logoWidthFraction = 0.62f,
+        )
+    }
+
+private fun mobileHeroHeight(
+    maxWidthDp: Float,
+    viewportHeightDp: Float?,
+    mobileBelowSectionHeightHintDp: Float?,
+): Dp {
+    val viewportDrivenHeight = viewportHeightDp?.let { (it * MOBILE_HERO_VIEWPORT_RATIO).dp }
+    val widthFallbackHeight = (maxWidthDp * 1.16f).dp
+    val baseHeight = viewportDrivenHeight ?: widthFallbackHeight
+
+    val cappedHeight = if (viewportHeightDp != null && mobileBelowSectionHeightHintDp != null) {
+        val maxAllowedFromViewport = (viewportHeightDp - mobileBelowSectionHeightHintDp).dp
+        baseHeight.coerceAtMost(maxAllowedFromViewport)
+    } else {
+        baseHeight
+    }
+
+    return cappedHeight.coerceIn(MOBILE_HERO_MIN_HEIGHT_DP.dp, MOBILE_HERO_MAX_HEIGHT_DP.dp)
+}
+
+@Composable
+private fun HeroMetaDot() {
+    Box(
+        modifier = Modifier
+            .size(4.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)),
+    )
+}
+
+private fun heroBackgroundScrollScale(scrollOffsetPx: Float): Float {
+    val scaleIncrease = if (scrollOffsetPx < 0f) {
+        abs(scrollOffsetPx) * HERO_SCROLL_UP_SCALE_MULTIPLIER
+    } else {
+        scrollOffsetPx * HERO_SCROLL_DOWN_SCALE_MULTIPLIER
+    }
+    return (1f + scaleIncrease).coerceAtMost(HERO_SCROLL_MAX_SCALE)
+}
+
+private fun heroBackgroundScrollTranslationY(scrollOffsetPx: Float): Float {
+    return scrollOffsetPx * HERO_SCROLL_PARALLAX
+}
+
+private fun Modifier.homeHeroPagerGesture(
+    pagerState: PagerState,
+    itemCount: Int,
+    coroutineScope: CoroutineScope,
+): Modifier {
+    if (itemCount <= 1) return this
+
+    return pointerInput(pagerState, itemCount) {
+        awaitEachGesture {
+            val down = awaitFirstDown(pass = PointerEventPass.Initial)
+            val widthPx = size.width.toFloat().takeIf { it > 0f } ?: return@awaitEachGesture
+            val velocityTracker = VelocityTracker().apply {
+                addPosition(down.uptimeMillis, down.position)
+            }
+            val startPage = pagerState.currentPage
+            var totalDx = 0f
+            var totalDy = 0f
+            var dragging = false
+
+            while (true) {
+                val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                velocityTracker.addPosition(change.uptimeMillis, change.position)
+
+                if (!change.pressed) {
+                    if (dragging) {
+                        val targetPage = resolveHeroTargetPage(
+                            startPage = startPage,
+                            itemCount = itemCount,
+                            totalDx = totalDx,
+                            velocityX = velocityTracker.calculateVelocity().x,
+                            widthPx = widthPx,
+                        )
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(targetPage)
+                        }
+                    }
+                    break
+                }
+
+                val delta = change.position - change.previousPosition
+                totalDx += delta.x
+                totalDy += delta.y
+
+                if (!dragging) {
+                    val horizontalDrag =
+                        abs(totalDx) > viewConfiguration.touchSlop && abs(totalDx) > abs(totalDy)
+                    val verticalDrag =
+                        abs(totalDy) > viewConfiguration.touchSlop && abs(totalDy) > abs(totalDx)
+
+                    when {
+                        verticalDrag -> break
+                        horizontalDrag -> dragging = true
+                        else -> continue
+                    }
+                }
+
+                pagerState.dispatchRawDelta(-delta.x)
+                change.consume()
+            }
+        }
+    }
+}
+
+private fun resolveHeroTargetPage(
+    startPage: Int,
+    itemCount: Int,
+    totalDx: Float,
+    velocityX: Float,
+    widthPx: Float,
+): Int {
+    val thresholdPassed = abs(totalDx) > widthPx * HERO_SWIPE_THRESHOLD_FRACTION ||
+        abs(velocityX) > HERO_SWIPE_VELOCITY_THRESHOLD
+    if (!thresholdPassed) return startPage
+
+    val currentPage = startPage.coerceIn(0, itemCount - 1)
+    return when {
+        totalDx > 0f -> if (currentPage == 0) itemCount - 1 else currentPage - 1
+        totalDx < 0f -> if (currentPage == itemCount - 1) 0 else currentPage + 1
+        else -> currentPage
+    }
+}

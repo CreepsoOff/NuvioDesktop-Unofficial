@@ -1,0 +1,28 @@
+package com.nuvio.app.features.player
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+
+class PlayerLaunchStoreTest {
+
+    @Test
+    fun storesAndRemovesLaunchesById() {
+        val launch = PlayerLaunch(
+            title = "Title",
+            sourceUrl = "https://example.com/video.m3u8?token=a/b:c",
+            streamTitle = "Source",
+            providerName = "Provider",
+            parentMetaId = "tt1234567",
+            parentMetaType = "movie",
+        )
+
+        val launchId = PlayerLaunchStore.put(launch)
+
+        assertEquals(launch, PlayerLaunchStore.get(launchId))
+
+        PlayerLaunchStore.remove(launchId)
+
+        assertNull(PlayerLaunchStore.get(launchId))
+    }
+}

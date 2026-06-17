@@ -1,0 +1,118 @@
+package com.nuvio.app.features.watchprogress
+
+import com.nuvio.app.core.storage.ProfileScopedKey
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+@Serializable
+data class CachedNextUpItem(
+    val contentId: String,
+    val contentType: String,
+    val name: String,
+    val poster: String? = null,
+    val backdrop: String? = null,
+    val logo: String? = null,
+    val videoId: String,
+    val season: Int? = null,
+    val episode: Int? = null,
+    val episodeTitle: String? = null,
+    val episodeThumbnail: String? = null,
+    val pauseDescription: String? = null,
+    val released: String? = null,
+    val hasAired: Boolean = true,
+    val lastWatched: Long,
+    val sortTimestamp: Long,
+    val seedSeason: Int? = null,
+    val seedEpisode: Int? = null,
+    val isReleaseAlert: Boolean = false,
+    val isNewSeasonRelease: Boolean = false,
+)
+
+@Serializable
+data class CachedInProgressItem(
+    val contentId: String,
+    val contentType: String,
+    val name: String,
+    val poster: String? = null,
+    val backdrop: String? = null,
+    val logo: String? = null,
+    val videoId: String,
+    val season: Int? = null,
+    val episode: Int? = null,
+    val episodeTitle: String? = null,
+    val episodeThumbnail: String? = null,
+    val pauseDescription: String? = null,
+    val position: Long,
+    val duration: Long,
+    val lastWatched: Long,
+    val progressPercent: Float? = null,
+)
+
+@Serializable
+private data class CachedEnrichmentPayload(
+    val nextUp: List<CachedNextUpItem> = emptyList(),
+    val inProgress: List<CachedInProgressItem> = emptyList(),
+)
+
+internal object ContinueWatchingEnrichmentCache {
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+
+    private const val storageKey = "cw_enrichment_cache"
+    private var lastPayloadHash: Int? = null
+    private val _cacheCleared = MutableStateFlow(0)
+    val cacheCleared: StateFlow<Int> = _cacheCleared.asStateFlow()
+
+    fun getNextUpSnapshot(): List<CachedNextUpItem> =
+        loadPayload()?.nextUp ?: emptyList()
+
+    fun getInProgressSnapshot(): List<CachedInProgressItem> =
+        loadPayload()?.inProgress ?: emptyList()
+
+    fun getSnapshots(): Pair<List<CachedNextUpItem>, List<CachedInProgressItem>> {
+        val payload = loadPayload()
+        val nextUp = payload?.nextUp ?: emptyList()
+        val inProgress = payload?.inProgress ?: emptyList()
+        return nextUp to inProgress
+    }
+
+    fun saveSnapshots(
+        nextUp: List<CachedNextUpItem>,
+        inProgress: List<CachedInProgressItem>,
+        force: Boolean = false,
+    ) {
+        val payload = CachedEnrichmentPayload(nextUp = nextUp, inProgress = inProgress)
+        val payloadHash = payload.hashCode()
+        if (!force && lastPayloadHash == payloadHash) {
+            return
+        }
+
+        val encoded = runCatching {
+            json.encodeToString(payload)
+        }.getOrNull() ?: return
+        ContinueWatchingEnrichmentStorage.savePayload(ProfileScopedKey.of(storageKey), encoded)
+        lastPayloadHash = payloadHash
+    }
+
+    fun clearAll() {
+        ContinueWatchingEnrichmentStorage.removePayload(ProfileScopedKey.of(storageKey))
+        lastPayloadHash = null
+        _cacheCleared.value += 1
+    }
+
+    private fun loadPayload(): CachedEnrichmentPayload? {
+        val raw = ContinueWatchingEnrichmentStorage.loadPayload(ProfileScopedKey.of(storageKey))
+            ?: return null
+        return runCatching {
+            json.decodeFromString<CachedEnrichmentPayload>(raw)
+        }.getOrNull()?.also { payload ->
+            lastPayloadHash = payload.hashCode()
+        }
+    }
+}
