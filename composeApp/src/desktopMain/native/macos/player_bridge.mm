@@ -102,6 +102,12 @@
 - (void)setVolume:(double)level;
 - (double)volume;
 - (void)setResizeMode:(int)mode;
+- (void)applyVideoTuningWithBrightness:(int)brightness
+                              contrast:(int)contrast
+                            saturation:(int)saturation
+                                 gamma:(int)gamma
+                                deband:(BOOL)deband
+                         interpolation:(BOOL)interpolation;
 - (long long)durationMs;
 - (long long)positionMs;
 - (long long)bufferedPositionMs;
@@ -1870,6 +1876,42 @@ static void setMpvOptionString(mpv_handle *mpv, const char *name, const char *va
     });
 }
 
+- (void)applyVideoTuningWithBrightness:(int)brightness
+                              contrast:(int)contrast
+                            saturation:(int)saturation
+                                 gamma:(int)gamma
+                                deband:(BOOL)deband
+                         interpolation:(BOOL)interpolation {
+    if (!_mpv) return;
+    int64_t clampedBrightness = MAX(-50, MIN(50, brightness));
+    int64_t clampedContrast = MAX(-50, MIN(50, contrast));
+    int64_t clampedSaturation = MAX(-50, MIN(50, saturation));
+    int64_t clampedGamma = MAX(-50, MIN(50, gamma));
+    dispatch_queue_t queue = _mpvEventQueue;
+    if (!queue) {
+        mpv_set_property(_mpv, "brightness", MPV_FORMAT_INT64, &clampedBrightness);
+        mpv_set_property(_mpv, "contrast", MPV_FORMAT_INT64, &clampedContrast);
+        mpv_set_property(_mpv, "saturation", MPV_FORMAT_INT64, &clampedSaturation);
+        mpv_set_property(_mpv, "gamma", MPV_FORMAT_INT64, &clampedGamma);
+        [self setStringProperty:"deband" value:deband ? @"yes" : @"no"];
+        [self setStringProperty:"interpolation" value:interpolation ? @"yes" : @"no"];
+        return;
+    }
+
+    dispatch_async(queue, ^{
+        mpv_handle *mpv = self->_mpv;
+        if (!mpv) {
+            return;
+        }
+        mpv_set_property(mpv, "brightness", MPV_FORMAT_INT64, &clampedBrightness);
+        mpv_set_property(mpv, "contrast", MPV_FORMAT_INT64, &clampedContrast);
+        mpv_set_property(mpv, "saturation", MPV_FORMAT_INT64, &clampedSaturation);
+        mpv_set_property(mpv, "gamma", MPV_FORMAT_INT64, &clampedGamma);
+        mpv_set_property_string(mpv, "deband", deband ? "yes" : "no");
+        mpv_set_property_string(mpv, "interpolation", interpolation ? "yes" : "no");
+    });
+}
+
 - (long long)durationMs {
     return (long long)llround(fmax(_cachedDurationSeconds.load(), 0.0) * 1000.0);
 }
@@ -2701,6 +2743,30 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setResizeMode(
     MpvWebPlayer *player = (__bridge MpvWebPlayer *)(void *)(intptr_t)handle;
     runOnMainAsync(^{
         [player setResizeMode:(int)mode];
+    });
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_applyVideoTuning(
+    JNIEnv * /* env */,
+    jobject /* bridge */,
+    jlong handle,
+    jint brightness,
+    jint contrast,
+    jint saturation,
+    jint gamma,
+    jboolean deband,
+    jboolean interpolation
+) {
+    if (handle == 0) return;
+    MpvWebPlayer *player = (__bridge MpvWebPlayer *)(void *)(intptr_t)handle;
+    runOnMainAsync(^{
+        [player applyVideoTuningWithBrightness:(int)brightness
+                                      contrast:(int)contrast
+                                    saturation:(int)saturation
+                                         gamma:(int)gamma
+                                        deband:deband == JNI_TRUE
+                                 interpolation:interpolation == JNI_TRUE];
     });
 }
 

@@ -90,6 +90,12 @@ data class PlayerSettingsUiState(
     val iosSaturation: Int = 0,
     val iosGamma: Int = 0,
     val nvidiaRtxSuperResolutionEnabled: Boolean = false,
+    val desktopVideoDebandEnabled: Boolean = true,
+    val desktopVideoInterpolationEnabled: Boolean = false,
+    val desktopVideoBrightness: Int = 0,
+    val desktopVideoContrast: Int = 0,
+    val desktopVideoSaturation: Int = 0,
+    val desktopVideoGamma: Int = 0,
 )
 
 object PlayerSettingsRepository {
@@ -155,6 +161,12 @@ object PlayerSettingsRepository {
     private var iosSaturation = 0
     private var iosGamma = 0
     private var nvidiaRtxSuperResolutionEnabled = false
+    private var desktopVideoDebandEnabled = true
+    private var desktopVideoInterpolationEnabled = false
+    private var desktopVideoBrightness = 0
+    private var desktopVideoContrast = 0
+    private var desktopVideoSaturation = 0
+    private var desktopVideoGamma = 0
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -225,6 +237,12 @@ object PlayerSettingsRepository {
         iosSaturation = 0
         iosGamma = 0
         nvidiaRtxSuperResolutionEnabled = false
+        desktopVideoDebandEnabled = true
+        desktopVideoInterpolationEnabled = false
+        desktopVideoBrightness = 0
+        desktopVideoContrast = 0
+        desktopVideoSaturation = 0
+        desktopVideoGamma = 0
         publish()
     }
 
@@ -367,6 +385,12 @@ object PlayerSettingsRepository {
         iosSaturation = PlayerSettingsStorage.loadIosSaturation() ?: 0
         iosGamma = PlayerSettingsStorage.loadIosGamma() ?: 0
         nvidiaRtxSuperResolutionEnabled = PlayerSettingsStorage.loadNvidiaRtxSuperResolutionEnabled() ?: false
+        desktopVideoDebandEnabled = PlayerSettingsStorage.loadDesktopVideoDebandEnabled() ?: true
+        desktopVideoInterpolationEnabled = PlayerSettingsStorage.loadDesktopVideoInterpolationEnabled() ?: false
+        desktopVideoBrightness = PlayerSettingsStorage.loadDesktopVideoBrightness() ?: 0
+        desktopVideoContrast = PlayerSettingsStorage.loadDesktopVideoContrast() ?: 0
+        desktopVideoSaturation = PlayerSettingsStorage.loadDesktopVideoSaturation() ?: 0
+        desktopVideoGamma = PlayerSettingsStorage.loadDesktopVideoGamma() ?: 0
         publish()
     }
 
@@ -901,6 +925,65 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveIosInterpolationEnabled(false)
     }
 
+    fun setDesktopVideoDebandEnabled(enabled: Boolean) {
+        ensureLoaded()
+        desktopVideoDebandEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveDesktopVideoDebandEnabled(enabled)
+    }
+
+    fun setDesktopVideoInterpolationEnabled(enabled: Boolean) {
+        ensureLoaded()
+        desktopVideoInterpolationEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveDesktopVideoInterpolationEnabled(enabled)
+    }
+
+    fun setDesktopVideoBrightness(value: Int) {
+        ensureLoaded()
+        desktopVideoBrightness = value.coerceIn(-50, 50)
+        publish()
+        PlayerSettingsStorage.saveDesktopVideoBrightness(desktopVideoBrightness)
+    }
+
+    fun setDesktopVideoContrast(value: Int) {
+        ensureLoaded()
+        desktopVideoContrast = value.coerceIn(-50, 50)
+        publish()
+        PlayerSettingsStorage.saveDesktopVideoContrast(desktopVideoContrast)
+    }
+
+    fun setDesktopVideoSaturation(value: Int) {
+        ensureLoaded()
+        desktopVideoSaturation = value.coerceIn(-50, 50)
+        publish()
+        PlayerSettingsStorage.saveDesktopVideoSaturation(desktopVideoSaturation)
+    }
+
+    fun setDesktopVideoGamma(value: Int) {
+        ensureLoaded()
+        desktopVideoGamma = value.coerceIn(-50, 50)
+        publish()
+        PlayerSettingsStorage.saveDesktopVideoGamma(desktopVideoGamma)
+    }
+
+    fun resetDesktopVideoTuning() {
+        ensureLoaded()
+        desktopVideoBrightness = 0
+        desktopVideoContrast = 0
+        desktopVideoSaturation = 0
+        desktopVideoGamma = 0
+        desktopVideoDebandEnabled = true
+        desktopVideoInterpolationEnabled = false
+        publish()
+        PlayerSettingsStorage.saveDesktopVideoBrightness(0)
+        PlayerSettingsStorage.saveDesktopVideoContrast(0)
+        PlayerSettingsStorage.saveDesktopVideoSaturation(0)
+        PlayerSettingsStorage.saveDesktopVideoGamma(0)
+        PlayerSettingsStorage.saveDesktopVideoDebandEnabled(true)
+        PlayerSettingsStorage.saveDesktopVideoInterpolationEnabled(false)
+    }
+
     private fun saveIosVideoOutputSettings() {
         PlayerSettingsStorage.saveIosVideoOutputPreset(iosVideoOutputPreset.name)
         PlayerSettingsStorage.saveIosToneMappingMode(iosToneMappingMode.name)
@@ -971,6 +1054,12 @@ object PlayerSettingsRepository {
             iosSaturation = iosSaturation,
             iosGamma = iosGamma,
             nvidiaRtxSuperResolutionEnabled = nvidiaRtxSuperResolutionEnabled,
+            desktopVideoDebandEnabled = desktopVideoDebandEnabled,
+            desktopVideoInterpolationEnabled = desktopVideoInterpolationEnabled,
+            desktopVideoBrightness = desktopVideoBrightness,
+            desktopVideoContrast = desktopVideoContrast,
+            desktopVideoSaturation = desktopVideoSaturation,
+            desktopVideoGamma = desktopVideoGamma,
         )
     }
 

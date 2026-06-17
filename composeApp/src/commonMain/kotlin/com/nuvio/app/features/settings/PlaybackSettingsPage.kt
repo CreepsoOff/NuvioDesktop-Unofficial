@@ -940,6 +940,86 @@ private fun PlaybackSettingsSection(
             }
         }
 
+        if (isDesktop) {
+            val videoTuningEnabled = !autoPlayPlayerSettings.externalPlayerEnabled
+            SettingsSection(
+                title = stringResource(Res.string.player_video_settings_title),
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.player_video_settings_deband),
+                        description = stringResource(Res.string.player_video_settings_deband_desc),
+                        checked = autoPlayPlayerSettings.desktopVideoDebandEnabled,
+                        enabled = videoTuningEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = PlayerSettingsRepository::setDesktopVideoDebandEnabled,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.player_video_settings_interpolation),
+                        description = stringResource(Res.string.player_video_settings_interpolation_desc),
+                        checked = autoPlayPlayerSettings.desktopVideoInterpolationEnabled,
+                        enabled = videoTuningEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = PlayerSettingsRepository::setDesktopVideoInterpolationEnabled,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.player_video_settings_brightness),
+                        value = autoPlayPlayerSettings.desktopVideoBrightness,
+                        valueText = autoPlayPlayerSettings.desktopVideoBrightness.toString(),
+                        valueRange = -50..50,
+                        step = 1,
+                        isTablet = isTablet,
+                        enabled = videoTuningEnabled,
+                        onValueChange = PlayerSettingsRepository::setDesktopVideoBrightness,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.player_video_settings_contrast),
+                        value = autoPlayPlayerSettings.desktopVideoContrast,
+                        valueText = autoPlayPlayerSettings.desktopVideoContrast.toString(),
+                        valueRange = -50..50,
+                        step = 1,
+                        isTablet = isTablet,
+                        enabled = videoTuningEnabled,
+                        onValueChange = PlayerSettingsRepository::setDesktopVideoContrast,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.player_video_settings_saturation),
+                        value = autoPlayPlayerSettings.desktopVideoSaturation,
+                        valueText = autoPlayPlayerSettings.desktopVideoSaturation.toString(),
+                        valueRange = -50..50,
+                        step = 1,
+                        isTablet = isTablet,
+                        enabled = videoTuningEnabled,
+                        onValueChange = PlayerSettingsRepository::setDesktopVideoSaturation,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.player_video_settings_gamma),
+                        value = autoPlayPlayerSettings.desktopVideoGamma,
+                        valueText = autoPlayPlayerSettings.desktopVideoGamma.toString(),
+                        valueRange = -50..50,
+                        step = 1,
+                        isTablet = isTablet,
+                        enabled = videoTuningEnabled,
+                        onValueChange = PlayerSettingsRepository::setDesktopVideoGamma,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.player_video_settings_reset_tuning),
+                        description = stringResource(Res.string.player_video_settings_reset_tuning_desc),
+                        enabled = videoTuningEnabled,
+                        isTablet = isTablet,
+                        onClick = PlayerSettingsRepository::resetDesktopVideoTuning,
+                    )
+                }
+            }
+        }
+
         SettingsSection(
             title = stringResource(Res.string.settings_playback_section_skip_segments),
             isTablet = isTablet,

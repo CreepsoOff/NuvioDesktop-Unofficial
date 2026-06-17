@@ -9,6 +9,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -94,6 +96,7 @@ private fun NativePlayerSurface(
 ) {
     val host = remember { NativePlayerHost() }
     val controller = remember(host) { NativePlayerController(host) }
+    val playerSettings by PlayerSettingsRepository.uiState.collectAsState()
     val hostFirstPaintComplete = remember { mutableStateOf(false) }
     val hostFirstFullSizePaintComplete = remember { mutableStateOf(false) }
     LaunchedEffect(sourceUrl) {
@@ -174,6 +177,25 @@ private fun NativePlayerSurface(
 
     LaunchedEffect(controller, resizeMode) {
         controller.setResizeMode(resizeMode)
+    }
+
+    LaunchedEffect(
+        controller,
+        playerSettings.desktopVideoBrightness,
+        playerSettings.desktopVideoContrast,
+        playerSettings.desktopVideoSaturation,
+        playerSettings.desktopVideoGamma,
+        playerSettings.desktopVideoDebandEnabled,
+        playerSettings.desktopVideoInterpolationEnabled,
+    ) {
+        controller.applyVideoTuning(
+            brightness = playerSettings.desktopVideoBrightness,
+            contrast = playerSettings.desktopVideoContrast,
+            saturation = playerSettings.desktopVideoSaturation,
+            gamma = playerSettings.desktopVideoGamma,
+            deband = playerSettings.desktopVideoDebandEnabled,
+            interpolation = playerSettings.desktopVideoInterpolationEnabled,
+        )
     }
 
     LaunchedEffect(controller, playerControlsState) {
