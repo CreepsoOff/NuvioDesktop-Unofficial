@@ -11,17 +11,19 @@ import coil3.request.ImageRequest
 @Composable
 internal actual fun CollectionCardRemoteImage(
     imageUrl: String,
+    animatedImageUrl: String?,
     contentDescription: String,
     modifier: Modifier,
     contentScale: ContentScale,
     animateIfPossible: Boolean,
 ) {
     val context = LocalContext.current
-    val request: ImageRequest = remember(context, imageUrl) {
+    val effectiveUrl = animatedImageUrl?.takeIf { animateIfPossible && it.isNotBlank() } ?: imageUrl
+    val request: ImageRequest = remember(context, effectiveUrl) {
         ImageRequest.Builder(context)
-            .data(imageUrl)
-            .memoryCacheKey("home-collection:$imageUrl")
-            .diskCacheKey(imageUrl)
+            .data(effectiveUrl)
+            .memoryCacheKey("home-collection:$effectiveUrl")
+            .diskCacheKey(effectiveUrl)
             .build()
     }
 
