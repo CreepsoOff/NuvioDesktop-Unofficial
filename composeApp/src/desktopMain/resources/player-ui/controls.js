@@ -116,6 +116,30 @@ const sourceReloadButton = document.getElementById("sourceReloadButton");
 const sourceCloseButton = document.getElementById("sourceCloseButton");
 const sourceFilterList = document.getElementById("sourceFilterList");
 const sourceList = document.getElementById("sourceList");
+const videoSettingsModal = document.getElementById("videoSettingsModal");
+const videoSettingsPanelTitle = document.getElementById("videoSettingsPanelTitle");
+const videoSettingsResetButton = document.getElementById("videoSettingsResetButton");
+const videoSettingsCloseButton = document.getElementById("videoSettingsCloseButton");
+const desktopVideoDebandToggle = document.getElementById("desktopVideoDebandToggle");
+const desktopVideoDebandLabel = document.getElementById("desktopVideoDebandLabel");
+const desktopVideoDebandDescription = document.getElementById("desktopVideoDebandDescription");
+const desktopVideoDebandValue = document.getElementById("desktopVideoDebandValue");
+const desktopVideoInterpolationToggle = document.getElementById("desktopVideoInterpolationToggle");
+const desktopVideoInterpolationLabel = document.getElementById("desktopVideoInterpolationLabel");
+const desktopVideoInterpolationDescription = document.getElementById("desktopVideoInterpolationDescription");
+const desktopVideoInterpolationValue = document.getElementById("desktopVideoInterpolationValue");
+const desktopVideoBrightnessLabel = document.getElementById("desktopVideoBrightnessLabel");
+const desktopVideoBrightnessValue = document.getElementById("desktopVideoBrightnessValue");
+const desktopVideoBrightnessSlider = document.getElementById("desktopVideoBrightnessSlider");
+const desktopVideoContrastLabel = document.getElementById("desktopVideoContrastLabel");
+const desktopVideoContrastValue = document.getElementById("desktopVideoContrastValue");
+const desktopVideoContrastSlider = document.getElementById("desktopVideoContrastSlider");
+const desktopVideoSaturationLabel = document.getElementById("desktopVideoSaturationLabel");
+const desktopVideoSaturationValue = document.getElementById("desktopVideoSaturationValue");
+const desktopVideoSaturationSlider = document.getElementById("desktopVideoSaturationSlider");
+const desktopVideoGammaLabel = document.getElementById("desktopVideoGammaLabel");
+const desktopVideoGammaValue = document.getElementById("desktopVideoGammaValue");
+const desktopVideoGammaSlider = document.getElementById("desktopVideoGammaSlider");
 const episodesModal = document.getElementById("episodesModal");
 const episodeListView = document.getElementById("episodeListView");
 const episodeStreamsView = document.getElementById("episodeStreamsView");
@@ -180,6 +204,16 @@ let state = {
   unlockLabel: "Unlock player controls",
   submitIntroLabel: "Submit Intro",
   videoSettingsLabel: "Video settings",
+  videoSettingsPanelTitle: "Video",
+  videoSettingsResetLabel: "Reset tuning",
+  videoSettingsDebandLabel: "Deband",
+  videoSettingsDebandDescription: "",
+  videoSettingsInterpolationLabel: "Frame interpolation",
+  videoSettingsInterpolationDescription: "",
+  videoSettingsBrightnessLabel: "Brightness",
+  videoSettingsContrastLabel: "Contrast",
+  videoSettingsSaturationLabel: "Saturation",
+  videoSettingsGammaLabel: "Gamma",
   tapToUnlockLabel: "Tap to unlock",
   playbackErrorTitle: "Playback error",
   playbackErrorMessage: "",
@@ -270,6 +304,12 @@ let state = {
   nextEpisodePlayable: false,
   showSubmitIntro: false,
   showVideoSettings: false,
+  desktopVideoDebandEnabled: true,
+  desktopVideoInterpolationEnabled: false,
+  desktopVideoBrightness: 0,
+  desktopVideoContrast: 0,
+  desktopVideoSaturation: 0,
+  desktopVideoGamma: 0,
   showSources: false,
   showEpisodes: false,
   showExternalPlayer: false,
@@ -800,6 +840,7 @@ const modalByName = {
   audio: audioModal,
   subtitles: subtitleModal,
   sources: sourceModal,
+  videoSettings: videoSettingsModal,
   episodes: episodesModal,
   submitIntro: submitIntroModal,
   p2pConsent: p2pConsentModal,
@@ -1361,6 +1402,49 @@ const renderSourceModal = () => {
   renderSourceVirtualRows();
 };
 
+const boundedVideoValue = value => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(-50, Math.min(50, Math.round(parsed)));
+};
+
+const setTogglePill = (pill, enabled) => {
+  if (!pill) return;
+  pill.textContent = enabled ? (state.onLabel || "On") : (state.offLabel || "Off");
+  pill.classList.toggle("selected", enabled);
+};
+
+const setVideoSlider = (slider, valueElement, value) => {
+  const bounded = boundedVideoValue(value);
+  if (slider && Number(slider.value) !== bounded) {
+    slider.value = String(bounded);
+  }
+  if (valueElement) {
+    valueElement.textContent = String(bounded);
+  }
+};
+
+const renderVideoSettingsModal = () => {
+  videoSettingsPanelTitle.textContent = state.videoSettingsPanelTitle || "Video";
+  videoSettingsResetButton.textContent = state.videoSettingsResetLabel || "Reset tuning";
+  videoSettingsCloseButton.textContent = state.panelCloseLabel || "Close";
+  desktopVideoDebandLabel.textContent = state.videoSettingsDebandLabel || "Deband";
+  desktopVideoDebandDescription.textContent = state.videoSettingsDebandDescription || "";
+  desktopVideoInterpolationLabel.textContent = state.videoSettingsInterpolationLabel || "Frame interpolation";
+  desktopVideoInterpolationDescription.textContent = state.videoSettingsInterpolationDescription || "";
+  desktopVideoBrightnessLabel.textContent = state.videoSettingsBrightnessLabel || "Brightness";
+  desktopVideoContrastLabel.textContent = state.videoSettingsContrastLabel || "Contrast";
+  desktopVideoSaturationLabel.textContent = state.videoSettingsSaturationLabel || "Saturation";
+  desktopVideoGammaLabel.textContent = state.videoSettingsGammaLabel || "Gamma";
+
+  setTogglePill(desktopVideoDebandValue, Boolean(state.desktopVideoDebandEnabled));
+  setTogglePill(desktopVideoInterpolationValue, Boolean(state.desktopVideoInterpolationEnabled));
+  setVideoSlider(desktopVideoBrightnessSlider, desktopVideoBrightnessValue, state.desktopVideoBrightness);
+  setVideoSlider(desktopVideoContrastSlider, desktopVideoContrastValue, state.desktopVideoContrast);
+  setVideoSlider(desktopVideoSaturationSlider, desktopVideoSaturationValue, state.desktopVideoSaturation);
+  setVideoSlider(desktopVideoGammaSlider, desktopVideoGammaValue, state.desktopVideoGamma);
+};
+
 const appendEpisodeRow = (container, item) => {
   const row = document.createElement("button");
   row.type = "button";
@@ -1542,6 +1626,7 @@ const renderActiveModal = () => {
   if (activeModal === "audio") renderAudioTrackList();
   if (activeModal === "subtitles") renderSubtitleModal();
   if (activeModal === "sources") renderSourceModal();
+  if (activeModal === "videoSettings") renderVideoSettingsModal();
   if (activeModal === "episodes") renderEpisodesModal();
   if (activeModal === "submitIntro") renderSubmitIntroModal();
   if (activeModal === "p2pConsent") renderP2pConsentModal();
@@ -2172,6 +2257,10 @@ document.querySelectorAll("[data-command]").forEach(button => {
       send("sources", 0);
       return;
     }
+    if (command === "videoSettings") {
+      openPlayerModal("videoSettings");
+      return;
+    }
     if (command === "episodes") {
       episodeStreamFilterId = "";
       openPlayerModal("episodes");
@@ -2297,6 +2386,38 @@ sourceList.addEventListener("scroll", () => {
     requestSourceVirtualRender();
   }
 }, { passive: true });
+videoSettingsCloseButton.addEventListener("click", event => {
+  event.stopPropagation();
+  closePlayerModal();
+});
+videoSettingsResetButton.addEventListener("click", event => {
+  event.stopPropagation();
+  send("desktopVideoReset", 0);
+});
+desktopVideoDebandToggle.addEventListener("click", event => {
+  event.stopPropagation();
+  send("desktopVideoDeband", state.desktopVideoDebandEnabled ? 0 : 1);
+});
+desktopVideoInterpolationToggle.addEventListener("click", event => {
+  event.stopPropagation();
+  send("desktopVideoInterpolation", state.desktopVideoInterpolationEnabled ? 0 : 1);
+});
+
+const bindVideoSlider = (slider, valueElement, eventType) => {
+  slider.addEventListener("input", event => {
+    event.stopPropagation();
+    valueElement.textContent = String(boundedVideoValue(slider.value));
+  });
+  slider.addEventListener("change", event => {
+    event.stopPropagation();
+    send(eventType, boundedVideoValue(slider.value));
+  });
+};
+
+bindVideoSlider(desktopVideoBrightnessSlider, desktopVideoBrightnessValue, "desktopVideoBrightness");
+bindVideoSlider(desktopVideoContrastSlider, desktopVideoContrastValue, "desktopVideoContrast");
+bindVideoSlider(desktopVideoSaturationSlider, desktopVideoSaturationValue, "desktopVideoSaturation");
+bindVideoSlider(desktopVideoGammaSlider, desktopVideoGammaValue, "desktopVideoGamma");
 episodesCloseButton.addEventListener("click", event => {
   event.stopPropagation();
   closePlayerModal();
