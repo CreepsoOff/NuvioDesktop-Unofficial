@@ -93,6 +93,12 @@ private val SettingsSearchRevealThreshold = 28.dp
 private const val SettingsSearchRevealAnimationMillis = 240L
 private const val SettingsSearchRevealHapticDelayMillis = 90L
 
+private fun SettingsPage.isEnabledByPolicy(): Boolean =
+    when (this) {
+        SettingsPage.Plugins -> AppFeaturePolicy.pluginsEnabled
+        else -> true
+    }
+
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
@@ -206,8 +212,19 @@ fun SettingsScreen(
 
         var currentPage by rememberSaveable { mutableStateOf(SettingsPage.Root.name) }
         val scrollToTopRequests = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
-        val page = remember(currentPage) { SettingsPage.valueOf(currentPage) }
+        val page = remember(currentPage) {
+            runCatching { SettingsPage.valueOf(currentPage) }
+                .getOrDefault(SettingsPage.Root)
+                .takeIf { it.isEnabledByPolicy() }
+                ?: SettingsPage.Root
+        }
         val previousPage = page.previousPage()
+
+        LaunchedEffect(page, currentPage) {
+            if (page.name != currentPage) {
+                currentPage = page.name
+            }
+        }
 
         LaunchedEffect(rootActionRequests, rootActionsEnabled, page) {
             rootActionRequests.collect {
@@ -222,9 +239,12 @@ fun SettingsScreen(
         }
 
         LaunchedEffect(requestedPageName, rootActionsEnabled) {
-            val targetPage = requestedPageName
-                ?.let { runCatching { SettingsPage.valueOf(it) }.getOrNull() }
-                ?: return@LaunchedEffect
+            val requestedPage = requestedPageName ?: return@LaunchedEffect
+            val targetPage = runCatching { SettingsPage.valueOf(requestedPage) }.getOrNull()
+            if (targetPage == null || !targetPage.isEnabledByPolicy()) {
+                onRequestedPageConsumed()
+                return@LaunchedEffect
+            }
             if (!rootActionsEnabled) return@LaunchedEffect
             currentPage = targetPage.name
             onRequestedPageConsumed()
@@ -239,7 +259,9 @@ fun SettingsScreen(
             TabletSettingsScreen(
                 page = page,
                 scrollToTopRequests = scrollToTopRequests,
-                onPageChange = { currentPage = it.name },
+                onPageChange = {
+                    currentPage = if (it.isEnabledByPolicy()) it.name else SettingsPage.Root.name
+                },
                 playerSettings = playerSettingsUiState,
                 selectedTheme = selectedTheme,
                 onThemeSelected = ThemeSettingsRepository::setTheme,
@@ -278,7 +300,9 @@ fun SettingsScreen(
             MobileSettingsScreen(
                 page = page,
                 scrollToTopRequests = scrollToTopRequests,
-                onPageChange = { currentPage = it.name },
+                onPageChange = {
+                    currentPage = if (it.isEnabledByPolicy()) it.name else SettingsPage.Root.name
+                },
                 playerSettings = playerSettingsUiState,
                 selectedTheme = selectedTheme,
                 onThemeSelected = ThemeSettingsRepository::setTheme,
@@ -678,6 +702,7 @@ private fun TabletSettingsScreen(
     }
 
     fun openInlinePage(page: SettingsPage) {
+        if (!page.isEnabledByPolicy()) return
         selectedCategory = page.category.name
         onPageChange(page)
     }
