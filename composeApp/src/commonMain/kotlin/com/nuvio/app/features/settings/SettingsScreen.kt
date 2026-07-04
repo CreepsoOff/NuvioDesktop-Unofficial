@@ -63,6 +63,7 @@ import com.nuvio.app.features.debrid.DebridSettings
 import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
+import com.nuvio.app.features.home.buildHomeCatalogRefreshSignature
 import com.nuvio.app.features.mdblist.MdbListSettings
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.notifications.EpisodeReleaseNotificationsRepository
@@ -165,16 +166,7 @@ fun SettingsScreen(
             val allManifestsSettled = enabledAddons.isNotEmpty() &&
                 enabledAddons.none { it.isRefreshing }
             if (!allManifestsSettled) return@remember emptyList<String>()
-            enabledAddons.mapNotNull { addon ->
-                val manifest = addon.manifest ?: return@mapNotNull null
-                buildString {
-                    append(manifest.transportUrl)
-                    append(':')
-                    append(manifest.catalogs.joinToString(separator = ",") { catalog ->
-                        "${catalog.type}:${catalog.id}:${catalog.extra.count { it.isRequired }}"
-                    })
-                }
-            }
+            buildHomeCatalogRefreshSignature(enabledAddons)
         }
         val homescreenSettingsUiState by remember {
             HomeCatalogSettingsRepository.snapshot()
